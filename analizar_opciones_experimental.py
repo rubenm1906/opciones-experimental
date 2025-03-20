@@ -20,7 +20,7 @@ GROUPS_CONFIG = {
         "webhook": os.getenv("DISCORD_WEBHOOK_URL_INDICES", "https://discord.com/api/webhooks/1351688679353221202/Aoyn8_T6YWl4QYruzauJGoqYKyGek6UVoomUa3APmEXt4RkhX9spXvhAgDSf1Ck00SJA")
     },
     "shortlist": {
-        "tickers": os.getenv("SHORTLIST_TICKERS", "NA9.DE,TEP.PA,GOOGL,EPAM,NFE,GLNG,GLOB,NVDA").split(","),
+        "tickers": os.getenv("SHORTLIST_TICKERS", "EPAM,NFE,GLNG,GLOB").split(","),
         "description": "Lista personalizada de tickers",
         "webhook": os.getenv("DISCORD_WEBHOOK_URL_SHORTLIST", "https://discord.com/api/webhooks/1351688806570655824/hOlRcUJ2UkErdZGfSLBOAq2WekOg4aEtjRZkQHLNvrYdebuytW7cyZPQkGTjVpcG46cI")
     }
