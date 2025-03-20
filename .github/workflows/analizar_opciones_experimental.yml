@@ -28,6 +28,14 @@ on:
         description: 'Mínima volatilidad implícita (%)'
         required: false
         default: '35.0'
+      MIN_VOLUMEN:
+        description: 'Mínimo volumen'
+        required: false
+        default: '1'
+      MIN_OPEN_INTEREST:
+        description: 'Mínimo interés abierto'
+        required: false
+        default: '1'
       FILTRO_TIPO_OPCION:
         description: 'Tipo de opción (OTM, ITM, TODAS)'
         required: false
@@ -44,6 +52,14 @@ on:
         description: 'Mínimo bid para los contratos ($)'
         required: false
         default: '0.99'
+      ALERTA_RENTABILIDAD_ANUAL:
+        description: 'Alerta rentabilidad anual (%)'
+        required: false
+        default: '50.0'
+      ALERTA_VOLATILIDAD_MINIMA:
+        description: 'Alerta volatilidad mínima (%)'
+        required: false
+        default: '50.0'
   schedule:
     # 7magnificas: 1pm, 3pm, 5pm UTC
     - cron: '0 13 * * *'
@@ -83,10 +99,14 @@ jobs:
           MAX_DIAS_VENCIMIENTO: ${{ github.event.inputs.MAX_DIAS_VENCIMIENTO }}
           MIN_DIFERENCIA_PORCENTUAL: ${{ github.event.inputs.MIN_DIFERENCIA_PORCENTUAL }}
           MIN_VOLATILIDAD_IMPLICITA: ${{ github.event.inputs.MIN_VOLATILIDAD_IMPLICITA }}
+          MIN_VOLUMEN: ${{ github.event.inputs.MIN_VOLUMEN }}
+          MIN_OPEN_INTEREST: ${{ github.event.inputs.MIN_OPEN_INTEREST }}
           FILTRO_TIPO_OPCION: ${{ github.event.inputs.FILTRO_TIPO_OPCION }}
           TOP_CONTRATOS: ${{ github.event.inputs.TOP_CONTRATOS }}
           FORCE_DISCORD_NOTIFICATION: ${{ github.event.inputs.FORCE_DISCORD_NOTIFICATION }}
           MIN_BID: ${{ github.event.inputs.MIN_BID }}
+          ALERTA_RENTABILIDAD_ANUAL: ${{ github.event.inputs.ALERTA_RENTABILIDAD_ANUAL }}
+          ALERTA_VOLATILIDAD_MINIMA: ${{ github.event.inputs.ALERTA_VOLATILIDAD_MINIMA }}
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
@@ -129,10 +149,14 @@ jobs:
           MAX_DIAS_VENCIMIENTO: '45'
           MIN_DIFERENCIA_PORCENTUAL: '5.0'
           MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          MIN_VOLUMEN: '1'
+          MIN_OPEN_INTEREST: '1'
           FILTRO_TIPO_OPCION: 'OTM'
           TOP_CONTRATOS: '5'
           FORCE_DISCORD_NOTIFICATION: 'false'
           MIN_BID: '0.99'
+          ALERTA_RENTABILIDAD_ANUAL: '50.0'
+          ALERTA_VOLATILIDAD_MINIMA: '50.0'
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
@@ -175,10 +199,14 @@ jobs:
           MAX_DIAS_VENCIMIENTO: '45'
           MIN_DIFERENCIA_PORCENTUAL: '5.0'
           MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          MIN_VOLUMEN: '1'
+          MIN_OPEN_INTEREST: '1'
           FILTRO_TIPO_OPCION: 'OTM'
           TOP_CONTRATOS: '5'
           FORCE_DISCORD_NOTIFICATION: 'false'
           MIN_BID: '0.99'
+          ALERTA_RENTABILIDAD_ANUAL: '50.0'
+          ALERTA_VOLATILIDAD_MINIMA: '50.0'
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
@@ -221,10 +249,14 @@ jobs:
           MAX_DIAS_VENCIMIENTO: '45'
           MIN_DIFERENCIA_PORCENTUAL: '5.0'
           MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          MIN_VOLUMEN: '1'
+          MIN_OPEN_INTEREST: '1'
           FILTRO_TIPO_OPCION: 'OTM'
           TOP_CONTRATOS: '5'
           FORCE_DISCORD_NOTIFICATION: 'false'
           MIN_BID: '0.99'
+          ALERTA_RENTABILIDAD_ANUAL: '50.0'
+          ALERTA_VOLATILIDAD_MINIMA: '50.0'
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
