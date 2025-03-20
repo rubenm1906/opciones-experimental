@@ -16,14 +16,14 @@ DEFAULT_CONFIG = {
     "MAX_DIAS_VENCIMIENTO": int(os.getenv("MAX_DIAS_VENCIMIENTO", "45")),
     "MIN_DIFERENCIA_PORCENTUAL": float(os.getenv("MIN_DIFERENCIA_PORCENTUAL", "5.0")),
     "MIN_VOLATILIDAD_IMPLICITA": float(os.getenv("MIN_VOLATILIDAD_IMPLICITA", "35.0")),
-    "MIN_VOLUMEN": int(os.getenv("MIN_VOLUMEN", "1")),  # Nuevo
-    "MIN_OPEN_INTEREST": int(os.getenv("MIN_OPEN_INTEREST", "1")),  # Nuevo
+    "MIN_VOLUMEN": int(os.getenv("MIN_VOLUMEN", "1")),
+    "MIN_OPEN_INTEREST": int(os.getenv("MIN_OPEN_INTEREST", "1")),
     "FILTRO_TIPO_OPCION": os.getenv("FILTRO_TIPO_OPCION", "OTM"),
     "TOP_CONTRATOS": int(os.getenv("TOP_CONTRATOS", "5")),
     "FORCE_DISCORD_NOTIFICATION": os.getenv("FORCE_DISCORD_NOTIFICATION", "false").lower() == "true",
     "MIN_BID": float(os.getenv("MIN_BID", "0.99")),
-    "ALERTA_RENTABILIDAD_ANUAL": float(os.getenv("ALERTA_RENTABILIDAD_ANUAL", "50.0")),  # Nuevo
-    "ALERTA_VOLATILIDAD_MINIMA": float(os.getenv("ALERTA_VOLATILIDAD_MINIMA", "50.0")),  # Nuevo
+    "ALERTA_RENTABILIDAD_ANUAL": float(os.getenv("ALERTA_RENTABILIDAD_ANUAL", "50.0")),
+    "ALERTA_VOLATILIDAD_MINIMA": float(os.getenv("ALERTA_VOLATILIDAD_MINIMA", "50.0")),
 }
 
 # Configuración de grupos
@@ -54,6 +54,7 @@ def get_option_data_yahoo(ticker):
         if current_price <= 0:
             raise ValueError(f"Precio actual de {ticker} no válido: ${current_price}")
         logger.info(f"Precio actual de {ticker}: ${current_price:.2f}")
+        print(f"Precio actual de {ticker}: ${current_price:.2f}")  # Agregar print para consola
 
         for expiration in expirations:
             if not expiration:
@@ -136,9 +137,11 @@ def get_option_data_yahoo(ticker):
                     "source": "Yahoo"
                 })
         logger.info(f"Se encontraron {len(options_data)} opciones para {ticker} después de aplicar filtros")
+        print(f"Se encontraron {len(options_data)} opciones para {ticker} después de aplicar filtros")  # Agregar print
         return options_data
     except Exception as e:
         logger.error(f"Error obteniendo datos de Yahoo para {ticker}: {e}")
+        print(f"Error obteniendo datos de Yahoo para {ticker}: {e}")  # Agregar print
         return []
 
 def get_option_data_finnhub(ticker):
@@ -152,17 +155,21 @@ def combine_options_data(yahoo_data, finnhub_data):
 
 def analyze_ticker(ticker):
     logger.info(f"Analizando {ticker}...")
+    print(f"\n{'='*50}\nAnalizando ticker: {ticker}\n{'='*50}\n")  # Agregar print para consola
     yahoo_data = get_option_data_yahoo(ticker)
     finnhub_data = get_option_data_finnhub(ticker)
     logger.info(f"{len(yahoo_data)} opciones de Yahoo para {ticker}")
     logger.info(f"{len(finnhub_data)} opciones de Finnhub para {ticker}")
-    combined_data = combine_options_data(yahoo_data, finnhub_data)
-    logger.info(f"Combinadas {len(combined_data)} opciones para {ticker}")
-    return combined_data
+    logger.info(f"Combinadas {len(yahoo_data + finnhub_data)} opciones para {ticker}")
+    print(f"{len(yahoo_data)} opciones de Yahoo para {ticker}")
+    print(f"{len(finnhub_data)} opciones de Finnhub para {ticker}")
+    print(f"Combinadas {len(yahoo_data + finnhub_data)} opciones para {ticker}")
+    return combine_options_data(yahoo_data, finnhub_data)
 
 def send_discord_notification(tickers_identificados, webhook_url):
     if not webhook_url or webhook_url == "URL_POR_DEFECTO":
         logger.error(f"Error: Webhook inválido: {webhook_url}")
+        print(f"Error: Webhook inválido: {webhook_url}")  # Agregar print
         return
     try:
         ticker_list = ", ".join(tickers_identificados) if tickers_identificados else "Ninguno"
@@ -177,13 +184,16 @@ def send_discord_notification(tickers_identificados, webhook_url):
             response = requests.post(webhook_url, data=payload, files=files)
             response.raise_for_status()
         logger.info("Notificación enviada a Discord")
+        print("Notificación enviada a Discord")  # Agregar print
     except Exception as e:
         logger.error(f"Error enviando notificación a Discord: {e}")
+        print(f"Error enviando notificación a Discord: {e}")  # Agregar print
 
 def main():
     group_type = os.getenv("GROUP_TYPE", "7magnificas")
     if group_type not in GROUPS_CONFIG:
         logger.error(f"Grupo {group_type} no encontrado")
+        print(f"Grupo {group_type} no encontrado")  # Agregar print
         return
 
     group_config = GROUPS_CONFIG[group_type]
@@ -191,6 +201,7 @@ def main():
     description = group_config["description"]
     webhook_url = group_config["webhook"]
     logger.info(f"Webhook URL para {description}: {webhook_url}")
+    print(f"Webhook URL para {description}: {webhook_url}")  # Agregar print
 
     all_options = []
     errors = []
@@ -206,6 +217,7 @@ def main():
             options = analyze_ticker(ticker)
             if not options:
                 logger.info(f"No se encontraron opciones para {ticker}")
+                print(f"No se encontraron opciones para {ticker}")  # Agregar print
                 summary_message += f"==================================================\n"
                 summary_message += f"Analizando ticker: {ticker}\n"
                 summary_message += f"==================================================\n\n"
@@ -219,6 +231,7 @@ def main():
             df_ticker = pd.DataFrame(options)
             if df_ticker.empty:
                 logger.info(f"No hay opciones válidas para {ticker} después de aplicar filtros")
+                print(f"No hay opciones válidas para {ticker} después de aplicar filtros")  # Agregar print
                 summary_message += f"==================================================\n"
                 summary_message += f"Analizando ticker: {ticker}\n"
                 summary_message += f"==================================================\n\n"
@@ -257,9 +270,21 @@ def main():
             ticker_message += f"Fuentes: Yahoo Finance\n"
             ticker_message += f"Errores: Ninguno\n"
 
+            # Imprimir la información del ticker en la consola
+            print(f"Precio del subyacente ({ticker}): ${current_price:.2f}")
+            print(f"Mínimo de las últimas 52 semanas: ${min_52_week:.2f}")
+            print(f"Máximo de las últimas 52 semanas: ${max_52_week:.2f}")
+            print(f"{len(get_option_data_yahoo(ticker))} opciones de Yahoo para {ticker}")
+            print(f"{len(get_option_data_finnhub(ticker))} opciones de Finnhub para {ticker}")
+            print(f"Combinadas {len(options)} opciones para {ticker}")
+            print(f"Fuentes: Yahoo Finance")
+            print(f"Errores: Ninguno")
+
             if not best_contracts.empty:
                 tipo_opcion_texto = "Out of the Money" if DEFAULT_CONFIG["FILTRO_TIPO_OPCION"] == "OTM" else "In the Money"
                 ticker_message += f"\nOpciones PUT {tipo_opcion_texto} con rentabilidad anual > {DEFAULT_CONFIG['MIN_RENTABILIDAD_ANUAL']}% y diferencia % > {DEFAULT_CONFIG['MIN_DIFERENCIA_PORCENTUAL']}% (máximo {DEFAULT_CONFIG['MAX_DIAS_VENCIMIENTO']} días, volumen > {DEFAULT_CONFIG['MIN_VOLUMEN']}, volatilidad >= {DEFAULT_CONFIG['MIN_VOLATILIDAD_IMPLICITA']}%, interés abierto > {DEFAULT_CONFIG['MIN_OPEN_INTEREST']}, bid >= ${DEFAULT_CONFIG['MIN_BID']}):\n"
+                print(f"\nOpciones PUT {tipo_opcion_texto} con rentabilidad anual > {DEFAULT_CONFIG['MIN_RENTABILIDAD_ANUAL']}% y diferencia % > {DEFAULT_CONFIG['MIN_DIFERENCIA_PORCENTUAL']}% (máximo {DEFAULT_CONFIG['MAX_DIAS_VENCIMIENTO']} días, volumen > {DEFAULT_CONFIG['MIN_VOLUMEN']}, volatilidad >= {DEFAULT_CONFIG['MIN_VOLATILIDAD_IMPLICITA']}%, interés abierto > {DEFAULT_CONFIG['MIN_OPEN_INTEREST']}, bid >= ${DEFAULT_CONFIG['MIN_BID']}):")  # Agregar print
+
                 table_data = best_contracts[[
                     "strike", "last_price", "bid", "expiration", "days_to_expiration",
                     "rentabilidad_diaria", "rentabilidad_anual", "break_even", "percent_diff",
@@ -272,14 +297,17 @@ def main():
                 ]
                 table = tabulate(table_data, headers="keys", tablefmt="grid", showindex=False)
                 ticker_message += f"\n{table}\n"
+                print(table)  # Agregar print para mostrar la tabla en consola
             else:
                 ticker_message += f"No se encontraron contratos que cumplan los criterios para {ticker}.\n"
+                print(f"No se encontraron contratos que cumplan los criterios para {ticker}.")  # Agregar print
 
             summary_message += ticker_message + "\n"
 
         except Exception as e:
             errors.append(f"{ticker}: {str(e)}")
             logger.error(f"Error procesando {ticker}: {e}")
+            print(f"Error procesando {ticker}: {e}")  # Agregar print
             summary_message += f"==================================================\n"
             summary_message += f"Analizando ticker: {ticker}\n"
             summary_message += f"==================================================\n\n"
@@ -291,6 +319,7 @@ def main():
         df_all.to_csv("todas_las_opciones.csv", index=False)
     else:
         logger.info("No se encontraron opciones que cumplan con los criterios para ningún ticker.")
+        print("No se encontraron opciones que cumplan con los criterios para ningún ticker.")  # Agregar print
         summary_message += "No se encontraron opciones que cumplan con los criterios para ningún ticker.\n"
 
     # Guardar los mejores contratos en un archivo
@@ -358,6 +387,7 @@ def main():
     tickers_identificados = [ticker for ticker, best_contracts in best_contracts_by_ticker.items() if not best_contracts.empty]
     if DEFAULT_CONFIG["FORCE_DISCORD_NOTIFICATION"] or tickers_identificados:
         logger.debug(f"Enviando a {webhook_url} para {description}")
+        print(f"Enviando notificación a Discord para {description}")  # Agregar print
         send_discord_notification(tickers_identificados, webhook_url)
 
 if __name__ == "__main__":
