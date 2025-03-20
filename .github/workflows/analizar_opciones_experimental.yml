@@ -1,61 +1,243 @@
-def main():
-    group_type = os.getenv("GROUP_TYPE", "7magnificas")
-    if group_type not in GROUPS_CONFIG:
-        logger.error(f"Grupo {group_type} no encontrado")
-        return
+name: Analizar Opciones Experimental
 
-    group_config = GROUPS_CONFIG[group_type]
-    tickers = group_config["tickers"]
-    description = group_config["description"]
-    webhook_url = group_config["webhook"]
-    logger.info(f"Webhook URL para {description}: {webhook_url}")  # Añadimos este log para depuración
+on:
+  workflow_dispatch:  # Ejecución manual
+    inputs:
+      GROUP_TYPE:
+        description: 'Selecciona el grupo a analizar'
+        required: true
+        type: choice
+        options:
+          - 7magnificas
+          - indices
+          - shortlist
+        default: '7magnificas'
+      MIN_RENTABILIDAD_ANUAL:
+        description: 'Mínima rentabilidad anual (%)'
+        required: false
+        default: '45.0'
+      MAX_DIAS_VENCIMIENTO:
+        description: 'Máximo días al vencimiento'
+        required: false
+        default: '45'
+      MIN_DIFERENCIA_PORCENTUAL:
+        description: 'Mínima diferencia porcentual (%)'
+        required: false
+        default: '5.0'
+      MIN_VOLATILIDAD_IMPLICITA:
+        description: 'Mínima volatilidad implícita (%)'
+        required: false
+        default: '35.0'
+      FILTRO_TIPO_OPCION:
+        description: 'Tipo de opción (OTM, ITM, TODAS)'
+        required: false
+        default: 'OTM'
+      TOP_CONTRATOS:
+        description: 'Número máximo de contratos por ticker'
+        required: false
+        default: '5'
+      FORCE_DISCORD_NOTIFICATION:
+        description: 'Forzar notificación a Discord (true/false)'
+        required: false
+        default: 'false'
+      MIN_BID:
+        description: 'Mínimo bid para los contratos ($)'
+        required: false
+        default: '0.99'
+  schedule:
+    # 7magnificas: 1pm, 3pm, 5pm UTC
+    - cron: '0 13 * * *'
+    - cron: '0 15 * * *'
+    - cron: '0 17 * * *'
+    # indices: 11am, 1pm, 3pm UTC
+    - cron: '0 11 * * *'
+    - cron: '0 13 * * *'
+    - cron: '0 15 * * *'
+    # shortlist: 2pm, 4pm UTC
+    - cron: '0 14 * * *'
+    - cron: '0 16 * * *'
 
-    all_options = []
-    errors = []
-    for ticker in tickers:
-        try:
-            options = analyze_ticker(ticker)
-            all_options.extend(options)
-        except Exception as e:
-            errors.append(f"{ticker}: {str(e)}")
+jobs:
+  # Job para ejecuciones manuales (workflow_dispatch)
+  analizar-opciones-manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
 
-    if not all_options:
-        logger.info("No se encontraron opciones que cumplan con los criterios.")
-        return
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    df = pd.DataFrame(all_options)
-    df.to_csv("todas_las_opciones.csv", index=False)
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas tabulate requests
 
-    best_contracts = df.sort_values(by="annualized_return", ascending=False).head(DEFAULT_CONFIG["TOP_CONTRATOS"])
-    best_contracts.to_csv("mejores_contratos.csv", index=False)
+      - name: Ejecutar script experimental
+        env:
+          GROUP_TYPE: ${{ github.event.inputs.GROUP_TYPE }}
+          MIN_RENTABILIDAD_ANUAL: ${{ github.event.inputs.MIN_RENTABILIDAD_ANUAL }}
+          MAX_DIAS_VENCIMIENTO: ${{ github.event.inputs.MAX_DIAS_VENCIMIENTO }}
+          MIN_DIFERENCIA_PORCENTUAL: ${{ github.event.inputs.MIN_DIFERENCIA_PORCENTUAL }}
+          MIN_VOLATILIDAD_IMPLICITA: ${{ github.event.inputs.MIN_VOLATILIDAD_IMPLICITA }}
+          FILTRO_TIPO_OPCION: ${{ github.event.inputs.FILTRO_TIPO_OPCION }}
+          TOP_CONTRATOS: ${{ github.event.inputs.TOP_CONTRATOS }}
+          FORCE_DISCORD_NOTIFICATION: ${{ github.event.inputs.FORCE_DISCORD_NOTIFICATION }}
+          MIN_BID: ${{ github.event.inputs.MIN_BID }}
+          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
+          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
+          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
+        run: |
+          python analizar_opciones_experimental.py 2>&1 | tee output.log
 
-    stock = yf.Ticker(ticker)
-    current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
-    min_52_week = stock.info.get('fiftyTwoWeekLow', 0)
-    max_52_week = stock.info.get('fiftyTwoWeekHigh', 0)
+      - name: Subir resultados como artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-experimental-${{ github.event.inputs.GROUP_TYPE }}
+          path: |
+            resultados.txt
+            todas_las_opciones.csv
+            Mejores_Contratos.txt
+            mejores_contratos.csv
+            output.log
 
-    message = f"==================================================\n"
-    message += f"{ticker} ({description})\n"
-    message += f"==================================================\n\n"
-    message += f"Precio: ${current_price:.2f}\n"
-    message += f"Min 52s: ${min_52_week:.2f}\n"
-    message += f"Max 52s: ${max_52_week:.2f}\n"
-    message += f"{len(get_option_data_yahoo(ticker))} opciones de Yahoo para {ticker}\n"
-    message += f"{len(get_option_data_finnhub(ticker))} opciones de Finnhub para {ticker}\n"
-    message += f"Combinadas {len(all_options)} opciones para {ticker}\n"
-    message += f"Fuentes: Yahoo Finance\n"
-    message += f"Errores: {', '.join(errors) if errors else 'Ninguno'}\n"
-    message += f"Resultados guardados.\n"
+  # Job para el grupo 7magnificas (horarios programados)
+  analizar-opciones-7magnificas:
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 13 * * *' || github.event.schedule == '0 15 * * *' || github.event.schedule == '0 17 * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
 
-    with open("resultados.txt", "w") as f:
-        f.write(message)
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    if not best_contracts.empty:
-        table = tabulate(best_contracts, headers="keys", tablefmt="pipe", showindex=False)
-        with open("Mejores_Contratos.txt", "w") as f:
-            f.write(table)
-        message += f"\n**Mejores Contratos:**\n```\n{table}\n```"
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas tabulate requests
 
-    if DEFAULT_CONFIG["FORCE_DISCORD_NOTIFICATION"] or not best_contracts.empty:
-        logger.debug(f"Enviando a {webhook_url} para {description}")
-        send_discord_notification(message, webhook_url)
+      - name: Ejecutar script experimental
+        env:
+          GROUP_TYPE: '7magnificas'
+          MIN_RENTABILIDAD_ANUAL: '45.0'
+          MAX_DIAS_VENCIMIENTO: '45'
+          MIN_DIFERENCIA_PORCENTUAL: '5.0'
+          MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          FILTRO_TIPO_OPCION: 'OTM'
+          TOP_CONTRATOS: '5'
+          FORCE_DISCORD_NOTIFICATION: 'false'
+          MIN_BID: '0.99'
+          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
+          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
+          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
+        run: |
+          python analizar_opciones_experimental.py 2>&1 | tee output.log
+
+      - name: Subir resultados como artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-experimental-7magnificas
+          path: |
+            resultados.txt
+            todas_las_opciones.csv
+            Mejores_Contratos.txt
+            mejores_contratos.csv
+            output.log
+
+  # Job para el grupo indices (horarios programados)
+  analizar-opciones-indices:
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 11 * * *' || github.event.schedule == '0 13 * * *' || github.event.schedule == '0 15 * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas tabulate requests
+
+      - name: Ejecutar script experimental
+        env:
+          GROUP_TYPE: 'indices'
+          MIN_RENTABILIDAD_ANUAL: '45.0'
+          MAX_DIAS_VENCIMIENTO: '45'
+          MIN_DIFERENCIA_PORCENTUAL: '5.0'
+          MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          FILTRO_TIPO_OPCION: 'OTM'
+          TOP_CONTRATOS: '5'
+          FORCE_DISCORD_NOTIFICATION: 'false'
+          MIN_BID: '0.99'
+          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
+          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
+          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
+        run: |
+          python analizar_opciones_experimental.py 2>&1 | tee output.log
+
+      - name: Subir resultados como artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-experimental-indices
+          path: |
+            resultados.txt
+            todas_las_opciones.csv
+            Mejores_Contratos.txt
+            mejores_contratos.csv
+            output.log
+
+  # Job para el grupo shortlist (horarios programados)
+  analizar-opciones-shortlist:
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 14 * * *' || github.event.schedule == '0 16 * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas tabulate requests
+
+      - name: Ejecutar script experimental
+        env:
+          GROUP_TYPE: 'shortlist'
+          MIN_RENTABILIDAD_ANUAL: '45.0'
+          MAX_DIAS_VENCIMIENTO: '45'
+          MIN_DIFERENCIA_PORCENTUAL: '5.0'
+          MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          FILTRO_TIPO_OPCION: 'OTM'
+          TOP_CONTRATOS: '5'
+          FORCE_DISCORD_NOTIFICATION: 'false'
+          MIN_BID: '0.99'
+          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
+          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
+          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
+        run: |
+          python analizar_opciones_experimental.py 2>&1 | tee output.log
+
+      - name: Subir resultados como artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-experimental-shortlist
+          path: |
+            resultados.txt
+            todas_las_opciones.csv
+            Mejores_Contratos.txt
+            mejores_contratos.csv
+            output.log
