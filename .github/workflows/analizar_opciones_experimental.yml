@@ -1,243 +1,217 @@
-name: Analizar Opciones Experimental
+import os
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
+import requests
+from tabulate import tabulate
+import logging
 
-on:
-  workflow_dispatch:  # Ejecución manual
-    inputs:
-      GROUP_TYPE:
-        description: 'Selecciona el grupo a analizar'
-        required: true
-        type: choice
-        options:
-          - magnificas
-          - indices
-          - shortlist
-        default: 'magnificas'
-      MIN_RENTABILIDAD_ANUAL:
-        description: 'Mínima rentabilidad anual (%)'
-        required: false
-        default: '45.0'
-      MAX_DIAS_VENCIMIENTO:
-        description: 'Máximo días al vencimiento'
-        required: false
-        default: '45'
-      MIN_DIFERENCIA_PORCENTUAL:
-        description: 'Mínima diferencia porcentual (%)'
-        required: false
-        default: '5.0'
-      MIN_VOLATILIDAD_IMPLICITA:
-        description: 'Mínima volatilidad implícita (%)'
-        required: false
-        default: '35.0'
-      FILTRO_TIPO_OPCION:
-        description: 'Tipo de opción (OTM, ITM, TODAS)'
-        required: false
-        default: 'OTM'
-      TOP_CONTRATOS:
-        description: 'Número máximo de contratos por ticker'
-        required: false
-        default: '5'
-      FORCE_DISCORD_NOTIFICATION:
-        description: 'Forzar notificación a Discord (true/false)'
-        required: false
-        default: 'false'
-      MIN_BID:
-        description: 'Mínimo bid para los contratos ($)'
-        required: false
-        default: '0.99'
-  schedule:
-    # magnificas: 1pm, 3pm, 5pm UTC
-    - cron: '0 13 * * *'
-    - cron: '0 15 * * *'
-    - cron: '0 17 * * *'
-    # indices: 11am, 1pm, 3pm UTC
-    - cron: '0 11 * * *'
-    - cron: '0 13 * * *'
-    - cron: '0 15 * * *'
-    # shortlist: 2pm, 4pm UTC
-    - cron: '0 14 * * *'
-    - cron: '0 16 * * *'
+# Configuración de logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-jobs:
-  # Job para ejecuciones manuales (workflow_dispatch)
-  analizar-opciones-manual:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
+# Configuración predeterminada
+DEFAULT_CONFIG = {
+    "MIN_RENTABILIDAD_ANUAL": float(os.getenv("MIN_RENTABILIDAD_ANUAL", "45.0")),
+    "MAX_DIAS_VENCIMIENTO": int(os.getenv("MAX_DIAS_VENCIMIENTO", "45")),
+    "MIN_DIFERENCIA_PORCENTUAL": float(os.getenv("MIN_DIFERENCIA_PORCENTUAL", "5.0")),
+    "MIN_VOLATILIDAD_IMPLICITA": float(os.getenv("MIN_VOLATILIDAD_IMPLICITA", "35.0")),
+    "FILTRO_TIPO_OPCION": os.getenv("FILTRO_TIPO_OPCION", "OTM"),
+    "TOP_CONTRATOS": int(os.getenv("TOP_CONTRATOS", "5")),
+    "FORCE_DISCORD_NOTIFICATION": os.getenv("FORCE_DISCORD_NOTIFICATION", "false").lower() == "true",
+    "MIN_BID": float(os.getenv("MIN_BID", "0.99")),
+}
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+# Configuración de grupos
+GROUPS_CONFIG = {
+    "magnificas": {
+        "tickers": ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA"],
+        "description": "Magnificas",
+        "webhook": os.getenv("DISCORD_WEBHOOK_URL_magnificas", "URL_POR_DEFECTO")
+    },
+    "indices": {
+        "tickers": ["SPY", "QQQ", "IWM"],
+        "description": "Índices",
+        "webhook": os.getenv("DISCORD_WEBHOOK_URL_INDICES", "URL_POR_DEFECTO")
+    },
+    "shortlist": {
+        "tickers": ["NA9.DE", "TEP.PA", "GOOGL", "EPAM", "NFE", "GLNG", "GLOB", "NVDA"],
+        "description": "Shortlist",
+        "webhook": os.getenv("DISCORD_WEBHOOK_URL_SHORTLIST", "URL_POR_DEFECTO")
+    }
+}
 
-      - name: Instalar dependencias
-        run: |
-          python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests
+def get_option_data_yahoo(ticker):
+    try:
+        stock = yf.Ticker(ticker)
+        expirations = stock.options
+        options_data = []
+        current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
+        logger.info(f"Precio actual de {ticker}: ${current_price:.2f}")
 
-      - name: Ejecutar script experimental
-        env:
-          GROUP_TYPE: ${{ github.event.inputs.GROUP_TYPE }}
-          MIN_RENTABILIDAD_ANUAL: ${{ github.event.inputs.MIN_RENTABILIDAD_ANUAL }}
-          MAX_DIAS_VENCIMIENTO: ${{ github.event.inputs.MAX_DIAS_VENCIMIENTO }}
-          MIN_DIFERENCIA_PORCENTUAL: ${{ github.event.inputs.MIN_DIFERENCIA_PORCENTUAL }}
-          MIN_VOLATILIDAD_IMPLICITA: ${{ github.event.inputs.MIN_VOLATILIDAD_IMPLICITA }}
-          FILTRO_TIPO_OPCION: ${{ github.event.inputs.FILTRO_TIPO_OPCION }}
-          TOP_CONTRATOS: ${{ github.event.inputs.TOP_CONTRATOS }}
-          FORCE_DISCORD_NOTIFICATION: ${{ github.event.inputs.FORCE_DISCORD_NOTIFICATION }}
-          MIN_BID: ${{ github.event.inputs.MIN_BID }}
-          DISCORD_WEBHOOK_URL_MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_MAGNIFICAS }}
-          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
-          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
-        run: |
-          python analizar_opciones_experimental.py 2>&1 | tee output.log
+        for expiration in expirations:
+            if not expiration:
+                continue
+            expiration_date = datetime.strptime(expiration, '%Y-%m-%d')
+            days_to_expiration = (expiration_date - datetime.now()).days
+            if days_to_expiration > DEFAULT_CONFIG["MAX_DIAS_VENCIMIENTO"]:
+                logger.debug(f"Expiración {expiration} descartada: {days_to_expiration} días > {DEFAULT_CONFIG['MAX_DIAS_VENCIMIENTO']}")
+                continue
 
-      - name: Subir resultados como artefactos
-        uses: actions/upload-artifact@v4
-        with:
-          name: resultados-experimental-${{ github.event.inputs.GROUP_TYPE }}
-          path: |
-            resultados.txt
-            todas_las_opciones.csv
-            Mejores_Contratos.txt
-            mejores_contratos.csv
-            output.log
+            opt = stock.option_chain(expiration)
+            for option_type, chain in [("call", opt.calls), ("put", opt.puts)]:
+                for _, row in chain.iterrows():
+                    strike = row['strike']
+                    bid = row.get('bid', 0)
+                    if bid < DEFAULT_CONFIG["MIN_BID"]:
+                        logger.debug(f"Opción descartada: bid ${bid:.2f} < {DEFAULT_CONFIG['MIN_BID']}")
+                        continue
 
-  # Job para el grupo magnificas (horarios programados)
-  analizar-opciones-magnificas:
-    if: github.event_name == 'schedule' && (github.event.schedule == '0 13 * * *' || github.event.schedule == '0 15 * * *' || github.event.schedule == '0 17 * * *')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
+                    implied_volatility = row.get('impliedVolatility', 0) * 100
+                    if implied_volatility < DEFAULT_CONFIG["MIN_VOLATILIDAD_IMPLICITA"]:
+                        logger.debug(f"Opción descartada: volatilidad implícita {implied_volatility:.2f}% < {DEFAULT_CONFIG['MIN_VOLATILIDAD_IMPLICITA']}%")
+                        continue
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+                    last_price = row.get('lastPrice', 0)
+                    if last_price <= 0:
+                        logger.debug(f"Opción descartada: último precio ${last_price:.2f} <= 0")
+                        continue
 
-      - name: Instalar dependencias
-        run: |
-          python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests
+                    percent_diff = ((strike - current_price) / current_price * 100) if option_type == "call" else ((current_price - strike) / current_price * 100)
+                    if DEFAULT_CONFIG["FILTRO_TIPO_OPCION"] == "OTM":
+                        if option_type == "call" and strike <= current_price:
+                            logger.debug(f"Opción descartada: call OTM, strike ${strike:.2f} <= precio actual ${current_price:.2f}")
+                            continue
+                        if option_type == "put" and strike >= current_price:
+                            logger.debug(f"Opción descartada: put OTM, strike ${strike:.2f} >= precio actual ${current_price:.2f}")
+                            continue
+                    elif DEFAULT_CONFIG["FILTRO_TIPO_OPCION"] == "ITM":
+                        if option_type == "call" and strike >= current_price:
+                            logger.debug(f"Opción descartada: call ITM, strike ${strike:.2f} >= precio actual ${current_price:.2f}")
+                            continue
+                        if option_type == "put" and strike <= current_price:
+                            logger.debug(f"Opción descartada: put ITM, strike ${strike:.2f} <= precio actual ${current_price:.2f}")
+                            continue
 
-      - name: Ejecutar script experimental
-        env:
-          GROUP_TYPE: 'magnificas'
-          MIN_RENTABILIDAD_ANUAL: '45.0'
-          MAX_DIAS_VENCIMIENTO: '45'
-          MIN_DIFERENCIA_PORCENTUAL: '5.0'
-          MIN_VOLATILIDAD_IMPLICITA: '35.0'
-          FILTRO_TIPO_OPCION: 'OTM'
-          TOP_CONTRATOS: '5'
-          FORCE_DISCORD_NOTIFICATION: 'false'
-          MIN_BID: '0.99'
-          DISCORD_WEBHOOK_URL_MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_MAGNIFICAS }}
-          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
-          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
-        run: |
-          python analizar_opciones_experimental.py 2>&1 | tee output.log
+                    if abs(percent_diff) < DEFAULT_CONFIG["MIN_DIFERENCIA_PORCENTUAL"]:
+                        logger.debug(f"Opción descartada: diferencia porcentual {abs(percent_diff):.2f}% < {DEFAULT_CONFIG['MIN_DIFERENCIA_PORCENTUAL']}%")
+                        continue
 
-      - name: Subir resultados como artefactos
-        uses: actions/upload-artifact@v4
-        with:
-          name: resultados-experimental-magnificas
-          path: |
-            resultados.txt
-            todas_las_opciones.csv
-            Mejores_Contratos.txt
-            mejores_contratos.csv
-            output.log
+                    annualized_return = (last_price / current_price) * (365 / days_to_expiration) * 100
+                    if annualized_return < DEFAULT_CONFIG["MIN_RENTABILIDAD_ANUAL"]:
+                        logger.debug(f"Opción descartada: rentabilidad anualizada {annualized_return:.2f}% < {DEFAULT_CONFIG['MIN_RENTABILIDAD_ANUAL']}%")
+                        continue
 
-  # Job para el grupo indices (horarios programados)
-  analizar-opciones-indices:
-    if: github.event_name == 'schedule' && (github.event.schedule == '0 11 * * *' || github.event.schedule == '0 13 * * *' || github.event.schedule == '0 15 * * *')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
+                    options_data.append({
+                        "ticker": ticker,
+                        "type": option_type,
+                        "strike": strike,
+                        "expiration": expiration,
+                        "days_to_expiration": days_to_expiration,
+                        "bid": bid,
+                        "last_price": last_price,
+                        "implied_volatility": implied_volatility,
+                        "percent_diff": percent_diff,
+                        "annualized_return": annualized_return,
+                        "source": "Yahoo"
+                    })
+        logger.info(f"Se encontraron {len(options_data)} opciones para {ticker} después de aplicar filtros")
+        return options_data
+    except Exception as e:
+        logger.error(f"Error obteniendo datos de Yahoo para {ticker}: {e}")
+        return []
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+def get_option_data_finnhub(ticker):
+    # Placeholder para Finnhub (requiere API key y configuración adicional)
+    # Por ahora, devolvemos una lista vacía para evitar errores
+    return []
 
-      - name: Instalar dependencias
-        run: |
-          python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests
+def combine_options_data(yahoo_data, finnhub_data):
+    combined = yahoo_data + finnhub_data
+    return combined
 
-      - name: Ejecutar script experimental
-        env:
-          GROUP_TYPE: 'indices'
-          MIN_RENTABILIDAD_ANUAL: '45.0'
-          MAX_DIAS_VENCIMIENTO: '45'
-          MIN_DIFERENCIA_PORCENTUAL: '5.0'
-          MIN_VOLATILIDAD_IMPLICITA: '35.0'
-          FILTRO_TIPO_OPCION: 'OTM'
-          TOP_CONTRATOS: '5'
-          FORCE_DISCORD_NOTIFICATION: 'false'
-          MIN_BID: '0.99'
-          DISCORD_WEBHOOK_URL_MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_MAGNIFICAS }}
-          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
-          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
-        run: |
-          python analizar_opciones_experimental.py 2>&1 | tee output.log
+def analyze_ticker(ticker):
+    logger.info(f"Analizando {ticker}...")
+    yahoo_data = get_option_data_yahoo(ticker)
+    finnhub_data = get_option_data_finnhub(ticker)
+    logger.info(f"{len(yahoo_data)} opciones de Yahoo para {ticker}")
+    logger.info(f"{len(finnhub_data)} opciones de Finnhub para {ticker}")
+    combined_data = combine_options_data(yahoo_data, finnhub_data)
+    logger.info(f"Combinadas {len(combined_data)} opciones para {ticker}")
+    return combined_data
 
-      - name: Subir resultados como artefactos
-        uses: actions/upload-artifact@v4
-        with:
-          name: resultados-experimental-indices
-          path: |
-            resultados.txt
-            todas_las_opciones.csv
-            Mejores_Contratos.txt
-            mejores_contratos.csv
-            output.log
+def send_discord_notification(message, webhook_url):
+    if not webhook_url or webhook_url == "URL_POR_DEFECTO":
+        logger.error(f"Error: Webhook inválido: {webhook_url}")
+        return
+    try:
+        data = {"content": message}
+        response = requests.post(webhook_url, json=data)
+        response.raise_for_status()
+        logger.info("Notificación enviada a Discord")
+    except Exception as e:
+        logger.error(f"Error enviando notificación a Discord: {e}")
 
-  # Job para el grupo shortlist (horarios programados)
-  analizar-opciones-shortlist:
-    if: github.event_name == 'schedule' && (github.event.schedule == '0 14 * * *' || github.event.schedule == '0 16 * * *')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
+def main():
+    group_type = os.getenv("GROUP_TYPE", "magnificas")
+    if group_type not in GROUPS_CONFIG:
+        logger.error(f"Grupo {group_type} no encontrado")
+        return
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    group_config = GROUPS_CONFIG[group_type]
+    tickers = group_config["tickers"]
+    description = group_config["description"]
+    webhook_url = group_config["webhook"]
 
-      - name: Instalar dependencias
-        run: |
-          python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests
+    all_options = []
+    errors = []
+    for ticker in tickers:
+        try:
+            options = analyze_ticker(ticker)
+            all_options.extend(options)
+        except Exception as e:
+            errors.append(f"{ticker}: {str(e)}")
 
-      - name: Ejecutar script experimental
-        env:
-          GROUP_TYPE: 'shortlist'
-          MIN_RENTABILIDAD_ANUAL: '45.0'
-          MAX_DIAS_VENCIMIENTO: '45'
-          MIN_DIFERENCIA_PORCENTUAL: '5.0'
-          MIN_VOLATILIDAD_IMPLICITA: '35.0'
-          FILTRO_TIPO_OPCION: 'OTM'
-          TOP_CONTRATOS: '5'
-          FORCE_DISCORD_NOTIFICATION: 'false'
-          MIN_BID: '0.99'
-          DISCORD_WEBHOOK_URL_MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_MAGNIFICAS }}
-          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
-          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
-        run: |
-          python analizar_opciones_experimental.py 2>&1 | tee output.log
+    if not all_options:
+        logger.info("No se encontraron opciones que cumplan con los criterios.")
+        return
 
-      - name: Subir resultados como artefactos
-        uses: actions/upload-artifact@v4
-        with:
-          name: resultados-experimental-shortlist
-          path: |
-            resultados.txt
-            todas_las_opciones.csv
-            Mejores_Contratos.txt
-            mejores_contratos.csv
-            output.log
+    df = pd.DataFrame(all_options)
+    df.to_csv("todas_las_opciones.csv", index=False)
+
+    best_contracts = df.sort_values(by="annualized_return", ascending=False).head(DEFAULT_CONFIG["TOP_CONTRATOS"])
+    best_contracts.to_csv("mejores_contratos.csv", index=False)
+
+    stock = yf.Ticker(ticker)
+    current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
+    min_52_week = stock.info.get('fiftyTwoWeekLow', 0)
+    max_52_week = stock.info.get('fiftyTwoWeekHigh', 0)
+
+    message = f"==================================================\n"
+    message += f"{ticker} ({description})\n"
+    message += f"==================================================\n\n"
+    message += f"Precio: ${current_price:.2f}\n"
+    message += f"Min 52s: ${min_52_week:.2f}\n"
+    message += f"Max 52s: ${max_52_week:.2f}\n"
+    message += f"{len(get_option_data_yahoo(ticker))} opciones de Yahoo para {ticker}\n"
+    message += f"{len(get_option_data_finnhub(ticker))} opciones de Finnhub para {ticker}\n"
+    message += f"Combinadas {len(all_options)} opciones para {ticker}\n"
+    message += f"Fuentes: Yahoo Finance\n"
+    message += f"Errores: {', '.join(errors) if errors else 'Ninguno'}\n"
+    message += f"Resultados guardados.\n"
+
+    with open("resultados.txt", "w") as f:
+        f.write(message)
+
+    if not best_contracts.empty:
+        table = tabulate(best_contracts, headers="keys", tablefmt="pipe", showindex=False)
+        with open("Mejores_Contratos.txt", "w") as f:
+            f.write(table)
+        message += f"\n**Mejores Contratos:**\n```\n{table}\n```"
+
+    if DEFAULT_CONFIG["FORCE_DISCORD_NOTIFICATION"] or not best_contracts.empty:
+        logger.debug(f"Enviando a {webhook_url} para {description}")
+        send_discord_notification(message, webhook_url)
+
+if __name__ == "__main__":
+    main()
