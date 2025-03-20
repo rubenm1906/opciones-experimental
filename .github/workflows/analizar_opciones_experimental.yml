@@ -8,10 +8,10 @@ on:
         required: true
         type: choice
         options:
-          - 7magnificas
+          - magnificas
           - indices
           - shortlist
-        default: '7magnificas'
+        default: 'magnificas'
       SHORTLIST_TICKERS:
         description: 'Lista de tickers para shortlist (separados por comas)'
         required: false
@@ -56,16 +56,16 @@ on:
     # === Configuración de Horarios por Grupo (Fácil de Editar) ===
     # Formato: 'minuto hora * * *' (en UTC)
     # Ejemplo: '0 13 * * *' = 1:00 PM UTC, '0 15 * * *' = 3:00 PM UTC
-    # 7magnificas: 1pm, 3pm, 5pm UTC
+    # magnificas: 1pm, 3pm, 5pm UTC
     - cron: '0 13 * * *'
       inputs:
-        GROUP_TYPE: '7magnificas'
+        GROUP_TYPE: 'magnificas'
     - cron: '0 15 * * *'
       inputs:
-        GROUP_TYPE: '7magnificas'
+        GROUP_TYPE: 'magnificas'
     - cron: '0 17 * * *'
       inputs:
-        GROUP_TYPE: '7magnificas'
+        GROUP_TYPE: 'magnificas'
     # indices: 11am, 1pm, 3pm UTC
     - cron: '0 11 * * *'
       inputs:
@@ -123,7 +123,7 @@ jobs:
           TOP_CONTRATOS: ${{ github.event.inputs.TOP_CONTRATOS || '5' }}
           FORCE_DISCORD_NOTIFICATION: ${{ github.event.inputs.FORCE_DISCORD_NOTIFICATION || 'false' }}
           MIN_BID: ${{ github.event.inputs.MIN_BID || '0.99' }}
-          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
+          DISCORD_WEBHOOK_URL_MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
         run: |
