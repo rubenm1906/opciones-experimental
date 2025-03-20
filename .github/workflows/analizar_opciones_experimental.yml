@@ -52,6 +52,18 @@ on:
         description: 'Mínimo bid para los contratos ($)'
         required: false
         default: '0.99'
+  schedule:
+    # 7magnificas: 1pm, 3pm, 5pm UTC
+    - cron: '0 13 * * *'
+    - cron: '0 15 * * *'
+    - cron: '0 17 * * *'
+    # indices: 11am, 1pm, 3pm UTC
+    - cron: '0 11 * * *'
+    - cron: '0 13 * * *'
+    - cron: '0 15 * * *'
+    # shortlist: 2pm, 4pm UTC
+    - cron: '0 14 * * *'
+    - cron: '0 16 * * *'
 
 jobs:
   # Job para ejecuciones manuales (workflow_dispatch)
@@ -97,3 +109,151 @@ jobs:
           name: resultados-experimental-${{ github.event.inputs.GROUP_TYPE }}
           path: |
             resultados.txt
+            todas_las_opciones.csv
+            Mejores_Contratos.txt
+            mejores_contratos.csv
+            output.log
+
+  # Job para el grupo 7magnificas (horarios programados)
+  analizar-opciones-7magnificas:
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 13 * * *' || github.event.schedule == '0 15 * * *' || github.event.schedule == '0 17 * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas tabulate requests
+
+      - name: Ejecutar script experimental
+        env:
+          GROUP_TYPE: '7magnificas'
+          SHORTLIST_TICKERS: 'NA9.DE,TEP.PA,GOOGL,EPAM,NFE,GLNG,GLOB,NVDA'
+          MARKETS: 'NASDAQ'
+          MIN_RENTABILIDAD_ANUAL: '45.0'
+          MAX_DIAS_VENCIMIENTO: '45'
+          MIN_DIFERENCIA_PORCENTUAL: '5.0'
+          MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          FILTRO_TIPO_OPCION: 'OTM'
+          TOP_CONTRATOS: '5'
+          FORCE_DISCORD_NOTIFICATION: 'false'
+          MIN_BID: '0.99'
+          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
+          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
+          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
+        run: |
+          python analizar_opciones_experimental.py 2>&1 | tee output.log
+
+      - name: Subir resultados como artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-experimental-7magnificas
+          path: |
+            resultados.txt
+            todas_las_opciones.csv
+            Mejores_Contratos.txt
+            mejores_contratos.csv
+            output.log
+
+  # Job para el grupo indices (horarios programados)
+  analizar-opciones-indices:
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 11 * * *' || github.event.schedule == '0 13 * * *' || github.event.schedule == '0 15 * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas tabulate requests
+
+      - name: Ejecutar script experimental
+        env:
+          GROUP_TYPE: 'indices'
+          SHORTLIST_TICKERS: 'NA9.DE,TEP.PA,GOOGL,EPAM,NFE,GLNG,GLOB,NVDA'
+          MARKETS: 'NASDAQ'
+          MIN_RENTABILIDAD_ANUAL: '45.0'
+          MAX_DIAS_VENCIMIENTO: '45'
+          MIN_DIFERENCIA_PORCENTUAL: '5.0'
+          MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          FILTRO_TIPO_OPCION: 'OTM'
+          TOP_CONTRATOS: '5'
+          FORCE_DISCORD_NOTIFICATION: 'false'
+          MIN_BID: '0.99'
+          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
+          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
+          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
+        run: |
+          python analizar_opciones_experimental.py 2>&1 | tee output.log
+
+      - name: Subir resultados como artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-experimental-indices
+          path: |
+            resultados.txt
+            todas_las_opciones.csv
+            Mejores_Contratos.txt
+            mejores_contratos.csv
+            output.log
+
+  # Job para el grupo shortlist (horarios programados)
+  analizar-opciones-shortlist:
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 14 * * *' || github.event.schedule == '0 16 * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas tabulate requests
+
+      - name: Ejecutar script experimental
+        env:
+          GROUP_TYPE: 'shortlist'
+          SHORTLIST_TICKERS: 'NA9.DE,TEP.PA,GOOGL,EPAM,NFE,GLNG,GLOB,NVDA'
+          MARKETS: 'NASDAQ'
+          MIN_RENTABILIDAD_ANUAL: '45.0'
+          MAX_DIAS_VENCIMIENTO: '45'
+          MIN_DIFERENCIA_PORCENTUAL: '5.0'
+          MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          FILTRO_TIPO_OPCION: 'OTM'
+          TOP_CONTRATOS: '5'
+          FORCE_DISCORD_NOTIFICATION: 'false'
+          MIN_BID: '0.99'
+          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
+          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
+          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
+        run: |
+          python analizar_opciones_experimental.py 2>&1 | tee output.log
+
+      - name: Subir resultados como artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-experimental-shortlist
+          path: |
+            resultados.txt
+            todas_las_opciones.csv
+            Mejores_Contratos.txt
+            mejores_contratos.csv
+            output.log
