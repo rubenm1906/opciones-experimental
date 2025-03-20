@@ -9,10 +9,10 @@ import time
 # === Configuración de Grupos y Tickers (Fácil de Escalar) ===
 # Agrega nuevos grupos aquí siguiendo el mismo formato
 GROUPS_CONFIG = {
-    "7magnificas": {
+    "magnificas": {
         "tickers": ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA"],
         "description": "Las 7 magníficas (tecnología principal)",
-        "webhook": os.getenv("DISCORD_WEBHOOK_URL_7MAGNIFICAS", "https://discord.com/api/webhooks/1351687590536806431/nWxbEuawqZUwsk5nU39Mhoo366_beQqGUTEDpaKdJndnIXzW7r_wvPe8a8nW5PuApQmF")
+        "webhook": os.getenv("DISCORD_WEBHOOK_URL_MAGNIFICAS", "https://discord.com/api/webhooks/1351687590536806431/nWxbEuawqZUwsk5nU39Mhoo366_beQqGUTEDpaKdJndnIXzW7r_wvPe8a8nW5PuApQmF")
     },
     "indices": {
         "tickers": ["^GSPC", "^DJI", "^IXIC"],
@@ -60,12 +60,12 @@ FINNHUB_API_KEY = "cvbfudhr01qob7udcs1gcvbfudhr01qob7udcs20"
 
 def obtener_configuracion():
     """Obtiene la configuración dinámica basada en el grupo."""
-    GROUP_TYPE = os.getenv("GROUP_TYPE", "7magnificas").lower()
+    GROUP_TYPE = os.getenv("GROUP_TYPE", "magnificas").lower()
     print(f"[DEBUG] Grupo seleccionado: {GROUP_TYPE}")
 
     if GROUP_TYPE not in GROUPS_CONFIG:
-        print(f"Grupo no reconocido: {GROUP_TYPE}. Usando '7magnificas' por defecto.")
-        GROUP_TYPE = "7magnificas"
+        print(f"Grupo no reconocido: {GROUP_TYPE}. Usando 'magnificas' por defecto.")
+        GROUP_TYPE = "magnificas"
 
     group_config = GROUPS_CONFIG[GROUP_TYPE]
     TICKERS = [t.strip() for t in group_config["tickers"] if t.strip()]  # Limpiar y validar tickers
