@@ -24,10 +24,10 @@ DEFAULT_CONFIG = {
 
 # Configuración de grupos
 GROUPS_CONFIG = {
-    "magnificas": {
+    "7magnificas": {
         "tickers": ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA"],
         "description": "Magnificas",
-        "webhook": os.getenv("DISCORD_WEBHOOK_URL_magnificas", "URL_POR_DEFECTO")
+        "webhook": os.getenv("DISCORD_WEBHOOK_URL_7MAGNIFICAS", "URL_POR_DEFECTO")
     },
     "indices": {
         "tickers": ["SPY", "QQQ", "IWM"],
@@ -153,7 +153,7 @@ def send_discord_notification(message, webhook_url):
         logger.error(f"Error enviando notificación a Discord: {e}")
 
 def main():
-    group_type = os.getenv("GROUP_TYPE", "magnificas")
+    group_type = os.getenv("GROUP_TYPE", "7magnificas")
     if group_type not in GROUPS_CONFIG:
         logger.error(f"Grupo {group_type} no encontrado")
         return
