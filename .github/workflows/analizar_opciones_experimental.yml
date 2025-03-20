@@ -8,10 +8,10 @@ on:
         required: true
         type: choice
         options:
-          - magnificas
+          - 7magnificas
           - indices
           - shortlist
-        default: 'magnificas'
+        default: '7magnificas'
       SHORTLIST_TICKERS:
         description: 'Lista de tickers para shortlist (separados por comas)'
         required: false
@@ -52,50 +52,12 @@ on:
         description: 'Mínimo bid para los contratos ($)'
         required: false
         default: '0.99'
-  schedule:
-    # === Configuración de Horarios por Grupo (Fácil de Editar) ===
-    # Formato: 'minuto hora * * *' (en UTC)
-    # Ejemplo: '0 13 * * *' = 1:00 PM UTC, '0 15 * * *' = 3:00 PM UTC
-    # magnificas: 1pm, 3pm, 5pm UTC
-    - cron: '0 13 * * *'
-      inputs:
-        GROUP_TYPE: 'magnificas'
-    - cron: '0 15 * * *'
-      inputs:
-        GROUP_TYPE: 'magnificas'
-    - cron: '0 17 * * *'
-      inputs:
-        GROUP_TYPE: 'magnificas'
-    # indices: 11am, 1pm, 3pm UTC
-    - cron: '0 11 * * *'
-      inputs:
-        GROUP_TYPE: 'indices'
-    - cron: '0 13 * * *'
-      inputs:
-        GROUP_TYPE: 'indices'
-    - cron: '0 15 * * *'
-      inputs:
-        GROUP_TYPE: 'indices'
-    # shortlist: 2pm, 4pm UTC
-    - cron: '0 14 * * *'
-      inputs:
-        GROUP_TYPE: 'shortlist'
-    - cron: '0 16 * * *'
-      inputs:
-        GROUP_TYPE: 'shortlist'
-    # Para agregar un nuevo grupo, simplemente añade nuevas entradas cron aquí
-    # Ejemplo para un nuevo grupo "nuevo_grupo" a las 10am y 12pm UTC:
-    # - cron: '0 10 * * *'
-    #   inputs:
-    #     GROUP_TYPE: 'nuevo_grupo'
-    # - cron: '0 12 * * *'
-    #   inputs:
-    #     GROUP_TYPE: 'nuevo_grupo'
 
 jobs:
-  analizar-opciones-experimental:
+  # Job para ejecuciones manuales (workflow_dispatch)
+  analizar-opciones-manual:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
@@ -112,18 +74,18 @@ jobs:
 
       - name: Ejecutar script experimental
         env:
-          GROUP_TYPE: ${{ github.event.inputs.GROUP_TYPE || github.event.schedule.inputs.GROUP_TYPE }}
-          SHORTLIST_TICKERS: ${{ github.event.inputs.SHORTLIST_TICKERS || 'NA9.DE,TEP.PA,GOOGL,EPAM,NFE,GLNG,GLOB,NVDA' }}
-          MARKETS: ${{ github.event.inputs.MARKETS || 'NASDAQ' }}
-          MIN_RENTABILIDAD_ANUAL: ${{ github.event.inputs.MIN_RENTABILIDAD_ANUAL || '45.0' }}
-          MAX_DIAS_VENCIMIENTO: ${{ github.event.inputs.MAX_DIAS_VENCIMIENTO || '45' }}
-          MIN_DIFERENCIA_PORCENTUAL: ${{ github.event.inputs.MIN_DIFERENCIA_PORCENTUAL || '5.0' }}
-          MIN_VOLATILIDAD_IMPLICITA: ${{ github.event.inputs.MIN_VOLATILIDAD_IMPLICITA || '35.0' }}
-          FILTRO_TIPO_OPCION: ${{ github.event.inputs.FILTRO_TIPO_OPCION || 'OTM' }}
-          TOP_CONTRATOS: ${{ github.event.inputs.TOP_CONTRATOS || '5' }}
-          FORCE_DISCORD_NOTIFICATION: ${{ github.event.inputs.FORCE_DISCORD_NOTIFICATION || 'false' }}
-          MIN_BID: ${{ github.event.inputs.MIN_BID || '0.99' }}
-          DISCORD_WEBHOOK_URL_MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_MAGNIFICAS }}
+          GROUP_TYPE: ${{ github.event.inputs.GROUP_TYPE }}
+          SHORTLIST_TICKERS: ${{ github.event.inputs.SHORTLIST_TICKERS }}
+          MARKETS: ${{ github.event.inputs.MARKETS }}
+          MIN_RENTABILIDAD_ANUAL: ${{ github.event.inputs.MIN_RENTABILIDAD_ANUAL }}
+          MAX_DIAS_VENCIMIENTO: ${{ github.event.inputs.MAX_DIAS_VENCIMIENTO }}
+          MIN_DIFERENCIA_PORCENTUAL: ${{ github.event.inputs.MIN_DIFERENCIA_PORCENTUAL }}
+          MIN_VOLATILIDAD_IMPLICITA: ${{ github.event.inputs.MIN_VOLATILIDAD_IMPLICITA }}
+          FILTRO_TIPO_OPCION: ${{ github.event.inputs.FILTRO_TIPO_OPCION }}
+          TOP_CONTRATOS: ${{ github.event.inputs.TOP_CONTRATOS }}
+          FORCE_DISCORD_NOTIFICATION: ${{ github.event.inputs.FORCE_DISCORD_NOTIFICATION }}
+          MIN_BID: ${{ github.event.inputs.MIN_BID }}
+          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
         run: |
@@ -132,10 +94,6 @@ jobs:
       - name: Subir resultados como artefactos
         uses: actions/upload-artifact@v4
         with:
-          name: resultados-experimental-${{ github.event.inputs.GROUP_TYPE || github.event.schedule.inputs.GROUP_TYPE }}
+          name: resultados-experimental-${{ github.event.inputs.GROUP_TYPE }}
           path: |
             resultados.txt
-            todas_las_opciones.csv
-            Mejores_Contratos.txt
-            mejores_contratos.csv
-            output.log
