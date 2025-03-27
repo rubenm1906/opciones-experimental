@@ -148,7 +148,7 @@ GROUPS_CONFIG = {
     }
 }
 
-def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30):
+def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=23):
     """
     Calcula la volatilidad implícita promedio (IV) y la volatilidad histórica (Hist Vol) de un ticker.
     Retorna un diccionario con IV, Hist Vol y el volumen del subyacente.
@@ -253,7 +253,7 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
         prefer_iv_over_hist_vol = dynamic_criteria.get("prefer_iv_over_hist_vol", True)
         min_iv = dynamic_criteria.get("min_iv", 35.0)
         min_volume = dynamic_criteria.get("min_volume", 1000000)
-        hist_vol_period = dynamic_criteria.get("hist_vol_period", 30)
+        hist_vol_period = dynamic_criteria.get("hist_vol_period", 23)
 
         # Calcular métricas de volatilidad para cada ticker
         volatility_data = []
