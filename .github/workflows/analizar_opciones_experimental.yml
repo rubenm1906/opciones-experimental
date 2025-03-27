@@ -59,11 +59,11 @@ on:
     - cron: '0 14 * * *'
     - cron: '0 16 * * *'
     # european_companies: 12pm, 6pm UTC
-    - cron: '0 13 * * *'
+    - cron: '0 12 * * *'
     - cron: '0 18 * * *'
     # nasdaq_top_volatility: 9am, 3pm UTC
+    - cron: '0 9 * * *'
     - cron: '0 15 * * *'
-    - cron: '0 17 * * *'
 
 jobs:
   # Job para ejecuciones manuales (workflow_dispatch)
@@ -82,7 +82,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests yahoo_fin
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
@@ -130,7 +130,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests yahoo_fin
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
@@ -182,7 +182,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests yahoo_fin
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
@@ -234,7 +234,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests yahoo_fin
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
@@ -286,7 +286,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests yahoo_fin
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
@@ -338,7 +338,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests yahoo_fin
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
