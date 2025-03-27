@@ -34,12 +34,12 @@ GROUPS_CONFIG = {
         "webhook": os.getenv("DISCORD_WEBHOOK_URL_7MAGNIFICAS", "URL_POR_DEFECTO")
     },
     "indices": {
-        "tickers": ["SPY", "QQQ", "IWM"],
+        "tickers": ["SPY", "QQQ", "IWM", "DIA"],
         "description": "Índices",
         "webhook": os.getenv("DISCORD_WEBHOOK_URL_INDICES", "URL_POR_DEFECTO")
     },
     "shortlist": {
-        "tickers": ["NA9.DE", "TEP.PA", "GOOGL", "EPAM", "NFE", "GLNG", "GLOB", "NVDA"],
+        "tickers": ["EPAM", "NFE", "GLNG", "GLOB", "ASTS",],
         "description": "Shortlist",
         "webhook": os.getenv("DISCORD_WEBHOOK_URL_SHORTLIST", "URL_POR_DEFECTO")
     }
