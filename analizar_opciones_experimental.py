@@ -127,7 +127,7 @@ GROUPS_CONFIG = {
             "prefer_iv_over_hist_vol": True,
             "min_iv": 35.0,
             "min_volume": 1000000,
-            "hist_vol_period": 18  # Cambiado de 23 a 18
+            "hist_vol_period": 30  # Volvemos a 30, pero ahora el script manejará dinámicamente los datos disponibles
         },
         "description": "NASDAQ-100 Top 15 Volatilidad Implícita",
         "webhook": os.getenv("DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY", "URL_POR_DEFECTO"),
@@ -208,10 +208,18 @@ def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30):
         end_date = datetime.now()
         start_date = end_date - timedelta(days=hist_vol_period + 1)
         hist_data = stock.history(start=start_date, end=end_date)
-        if len(hist_data) < hist_vol_period:
-            logger.info(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol (se encontraron {len(hist_data)} días, se requieren {hist_vol_period})")
-            print(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol (se encontraron {len(hist_data)} días, se requieren {hist_vol_period})")
+        num_days = len(hist_data)
+        min_days_required = 10  # Requerimos al menos 10 días para un cálculo significativo
+
+        if num_days < min_days_required:
+            logger.info(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol (se encontraron {num_days} días, se requieren al menos {min_days_required})")
+            print(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol (se encontraron {num_days} días, se requieren al menos {min_days_required})")
             return None
+
+        # Si hay menos días de los solicitados, usar los días disponibles
+        if num_days < hist_vol_period:
+            logger.info(f"{ticker}: Datos históricos insuficientes para {hist_vol_period} días, usando {num_days} días disponibles")
+            print(f"{ticker}: Datos históricos insuficientes para {hist_vol_period} días, usando {num_days} días disponibles")
 
         # Calcular retornos diarios logarítmicos
         hist_data['returns'] = np.log(hist_data['Close'] / hist_data['Close'].shift(1))
