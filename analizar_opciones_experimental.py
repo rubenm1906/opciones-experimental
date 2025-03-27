@@ -84,6 +84,25 @@ GROUPS_CONFIG = {
             "ALERTA_RENTABILIDAD_ANUAL": float(os.getenv("ALERTA_RENTABILIDAD_ANUAL", BASE_CONFIG["ALERTA_RENTABILIDAD_ANUAL"])),
             "ALERTA_VOLATILIDAD_MINIMA": float(os.getenv("ALERTA_VOLATILIDAD_MINIMA", BASE_CONFIG["ALERTA_VOLATILIDAD_MINIMA"])),
         }
+    },
+    "european_companies": {
+        "tickers": ["ASML", "SAP", "UL", "TTE"],
+        "description": "Empresas Europeas",
+        "webhook": os.getenv("DISCORD_WEBHOOK_URL_EUROPEAN", "URL_POR_DEFECTO"),
+        "config": {
+            "MIN_RENTABILIDAD_ANUAL": 30.0,
+            "MAX_DIAS_VENCIMIENTO": 45,
+            "MIN_DIFERENCIA_PORCENTUAL": 3.0,
+            "MIN_VOLATILIDAD_IMPLICITA": 25.0,
+            "MIN_VOLUMEN": 1,
+            "MIN_OPEN_INTEREST": 1,
+            "FILTRO_TIPO_OPCION": "OTM",
+            "TOP_CONTRATOS": 5,
+            "FORCE_DISCORD_NOTIFICATION": False,
+            "MIN_BID": 0.99,
+            "ALERTA_RENTABILIDAD_ANUAL": 35.0,
+            "ALERTA_VOLATILIDAD_MINIMA": 30.0
+        }
     }
 }
 
