@@ -1,10 +1,12 @@
 import os
 import yfinance as yf
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 import requests
 from tabulate import tabulate
 import logging
+from yahoo_fin import stock_info as si
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -103,8 +105,161 @@ GROUPS_CONFIG = {
             "ALERTA_RENTABILIDAD_ANUAL": 35.0,
             "ALERTA_VOLATILIDAD_MINIMA": 30.0
         }
+    },
+    "nasdaq_top_volatility": {
+        "dynamic_source": {"index": "nasdaq100"},
+        "dynamic_criteria": {
+            "top": 15,
+            "metric": "implied_volatility",
+            "prefer_iv_over_hist_vol": True,
+            "min_iv": 35.0,
+            "min_volume": 1000000,
+            "hist_vol_period": 30
+        },
+        "description": "NASDAQ-100 Top 15 Volatilidad Implícita",
+        "webhook": os.getenv("DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY", "URL_POR_DEFECTO"),
+        "config": {
+            "MIN_RENTABILIDAD_ANUAL": 45.0,
+            "MAX_DIAS_VENCIMIENTO": 45,
+            "MIN_DIFERENCIA_PORCENTUAL": 5.0,
+            "MIN_VOLATILIDAD_IMPLICITA": 35.0,
+            "MIN_VOLUMEN": 1,
+            "MIN_OPEN_INTEREST": 1,
+            "FILTRO_TIPO_OPCION": "OTM",
+            "TOP_CONTRATOS": 5,
+            "FORCE_DISCORD_NOTIFICATION": False,
+            "MIN_BID": 0.99,
+            "ALERTA_RENTABILIDAD_ANUAL": 55.0,
+            "ALERTA_VOLATILIDAD_MINIMA": 40.0
+        }
     }
 }
+
+def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30):
+    """
+    Calcula la volatilidad implícita promedio (IV) y la volatilidad histórica (Hist Vol) de un ticker.
+    Retorna un diccionario con IV, Hist Vol y el volumen del subyacente.
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        # Obtener el precio actual y el volumen del subyacente
+        current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
+        volume = stock.info.get('averageVolume', 0)
+        if current_price <= 0:
+            logger.debug(f"{ticker}: Precio actual no válido: ${current_price}")
+            return None
+
+        # Calcular volatilidad implícita promedio (IV) usando opciones ATM
+        expirations = stock.options
+        iv_values = []
+        for expiration in expirations:
+            expiration_date = datetime.strptime(expiration, '%Y-%m-%d')
+            days_to_expiration = (expiration_date - datetime.now()).days
+            if days_to_expiration <= 0 or days_to_expiration > max_days:
+                continue
+
+            opt = stock.option_chain(expiration)
+            # Considerar puts y calls para obtener una mejor estimación
+            for chain in [opt.puts, opt.calls]:
+                if chain.empty:
+                    continue
+                # Encontrar la opción ATM (strike más cercano al precio actual)
+                chain['strike_diff'] = abs(chain['strike'] - current_price)
+                atm_option = chain.loc[chain['strike_diff'].idxmin()]
+                iv = atm_option.get('impliedVolatility', 0) * 100
+                if iv > 0:
+                    iv_values.append(iv)
+
+        if not iv_values:
+            logger.debug(f"{ticker}: No se encontraron opciones válidas para calcular IV")
+            return None
+        implied_volatility = np.mean(iv_values)
+
+        # Calcular volatilidad histórica (Hist Vol)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=hist_vol_period + 1)
+        hist_data = stock.history(start=start_date, end=end_date)
+        if len(hist_data) < hist_vol_period:
+            logger.debug(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol")
+            return None
+
+        # Calcular retornos diarios logarítmicos
+        hist_data['returns'] = np.log(hist_data['Close'] / hist_data['Close'].shift(1))
+        hist_vol = hist_data['returns'].std() * np.sqrt(252) * 100  # Anualizar
+
+        return {
+            "ticker": ticker,
+            "implied_volatility": implied_volatility,
+            "historical_volatility": hist_vol,
+            "volume": volume
+        }
+    except Exception as e:
+        logger.debug(f"Error calculando métricas de volatilidad para {ticker}: {e}")
+        return None
+
+def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
+    """
+    Genera una lista de tickers dinámicamente basada en los criterios especificados.
+    """
+    try:
+        # Obtener la lista de tickers según la fuente
+        index = dynamic_source.get("index")
+        if index == "nasdaq100":
+            tickers = si.tickers_nasdaq100()
+        else:
+            logger.error(f"Fuente dinámica no soportada: {index}")
+            return []
+
+        # Obtener criterios de filtrado
+        top_n = dynamic_criteria.get("top", 15)
+        metric = dynamic_criteria.get("metric", "implied_volatility")
+        prefer_iv_over_hist_vol = dynamic_criteria.get("prefer_iv_over_hist_vol", True)
+        min_iv = dynamic_criteria.get("min_iv", 35.0)
+        min_volume = dynamic_criteria.get("min_volume", 1000000)
+        hist_vol_period = dynamic_criteria.get("hist_vol_period", 30)
+
+        # Calcular métricas de volatilidad para cada ticker
+        volatility_data = []
+        for ticker in tickers:
+            metrics = calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=hist_vol_period)
+            if metrics is None:
+                continue
+            # Aplicar filtros iniciales
+            if metrics["implied_volatility"] < min_iv:
+                continue
+            if metrics["volume"] < min_volume:
+                continue
+            volatility_data.append(metrics)
+
+        if not volatility_data:
+            logger.warning("No se encontraron tickers que cumplan con los criterios de filtrado")
+            return []
+
+        # Convertir a DataFrame para facilitar el ordenamiento
+        df = pd.DataFrame(volatility_data)
+        df['iv_hist_diff'] = df['implied_volatility'] - df['historical_volatility']
+        df['iv_hist_diff_abs'] = df['iv_hist_diff'].abs()
+
+        # Seleccionar tickers
+        selected_tickers = []
+        # Primero, tickers con IV > Hist Vol, ordenados por IV (descendente)
+        if prefer_iv_over_hist_vol:
+            iv_greater = df[df['iv_hist_diff'] > 0].sort_values(by="implied_volatility", ascending=False)
+            selected_tickers.extend(iv_greater['ticker'].head(top_n).tolist())
+
+        # Si no se alcanzan los top_n tickers, seleccionar los restantes por diferencia absoluta (menor es mejor)
+        if len(selected_tickers) < top_n:
+            remaining_slots = top_n - len(selected_tickers)
+            remaining = df[~df['ticker'].isin(selected_tickers)].sort_values(by="iv_hist_diff_abs", ascending=True)
+            selected_tickers.extend(remaining['ticker'].head(remaining_slots).tolist())
+
+        logger.info(f"Tickers seleccionados para el grupo dinámico: {selected_tickers}")
+        print(f"Tickers seleccionados para el grupo dinámico: {selected_tickers}")
+        return selected_tickers
+    except Exception as e:
+        logger.error(f"Error generando tickers dinámicos: {e}")
+        print(f"Error generando tickers dinámicos: {e}")
+        return []
 
 def get_option_data_yahoo(ticker, group_config):
     try:
@@ -253,7 +408,7 @@ def send_discord_notification(tickers_identificados, webhook_url, group_config, 
         print("Notificación enviada a Discord")
     except Exception as e:
         logger.error(f"Error enviando notificación a Discord: {e}")
-        print(f"Error enviando notificación a Discord: {e}")
+        print(f"Error enviando notificación a Discord: {e}") 
 
 def main():
     group_type = os.getenv("GROUP_TYPE", "7magnificas")
@@ -263,7 +418,17 @@ def main():
         return
 
     group_config = GROUPS_CONFIG[group_type]
-    tickers = group_config["tickers"]
+    # Determinar si el grupo es dinámico o estático
+    if "dynamic_source" in group_config:
+        tickers = generate_dynamic_tickers(group_config["dynamic_source"], group_config["dynamic_criteria"])
+    else:
+        tickers = group_config["tickers"]
+
+    if not tickers:
+        logger.error(f"No se encontraron tickers para el grupo {group_type}")
+        print(f"No se encontraron tickers para el grupo {group_type}")
+        return
+
     description = group_config["description"]
     webhook_url = group_config["webhook"]
     config = group_config["config"]
