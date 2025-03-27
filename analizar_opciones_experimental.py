@@ -6,11 +6,24 @@ from datetime import datetime, timedelta
 import requests
 from tabulate import tabulate
 import logging
-from yahoo_fin import stock_info as si
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Lista estática de tickers del NASDAQ-100 (como solución temporal)
+NASDAQ_100_TICKERS = [
+    "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA", "PEP", "COST", "CSCO",
+    "TMUS", "CMCSA", "INTC", "AMD", "QCOM", "TXN", "AMGN", "HON", "INTU", "SBUX",
+    "GILD", "MDLZ", "ADBE", "NFLX", "PYPL", "ASML", "SNPS", "CDNS", "MRNA", "PANW",
+    "REGN", "ADP", "VRTX", "LRCX", "CSX", "MU", "FISV", "BIIB", "KLAC", "AEP",
+    "MAR", "ORLY", "KDP", "MNST", "FTNT", "ADSK", "KHC", "ODFL", "MCHP", "IDXX",
+    "CTAS", "EXC", "PCAR", "WBA", "ROST", "DXCM", "ILMN", "WBD", "EA", "FAST",
+    "VRSK", "CPRT", "BKR", "XEL", "ANSS", "TEAM", "DLTR", "WDAY", "PAYX", "SBAC",
+    "CTSH", "VRSN", "SWKS", "MTCH", "INCY", "TTD", "ZM", "SIRI", "NTES", "EBAY",
+    "LULU", "ALGN", "JD", "SGEN", "OKTA", "CDW", "ZS", "CHTR", "ULTA", "CINF",
+    "NDAQ", "TTWO", "ON", "ENPH", "CEG", "FANG", "GFS", "GEHC"
+]
 
 # Configuración predeterminada para todos los grupos (valores por defecto)
 BASE_CONFIG = {
@@ -205,7 +218,7 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
         # Obtener la lista de tickers según la fuente
         index = dynamic_source.get("index")
         if index == "nasdaq100":
-            tickers = si.tickers_nasdaq100()
+            tickers = NASDAQ_100_TICKERS  # Usar la lista estática
         else:
             logger.error(f"Fuente dinámica no soportada: {index}")
             return []
