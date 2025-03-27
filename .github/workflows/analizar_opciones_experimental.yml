@@ -12,6 +12,7 @@ on:
           - indices
           - shortlist
           - european_companies
+          - nasdaq_top_volatility
         default: '7magnificas'
       MIN_RENTABILIDAD_ANUAL:
         description: 'Mínima rentabilidad anual (%)'
@@ -60,6 +61,9 @@ on:
     # european_companies: 12pm, 6pm UTC
     - cron: '0 12 * * *'
     - cron: '0 18 * * *'
+    # nasdaq_top_volatility: 9am, 3pm UTC
+    - cron: '0 9 * * *'
+    - cron: '0 15 * * *'
 
 jobs:
   # Job para ejecuciones manuales (workflow_dispatch)
@@ -78,7 +82,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests
+          pip install yfinance pandas tabulate requests yahoo_fin
 
       - name: Ejecutar script experimental
         env:
@@ -95,6 +99,7 @@ jobs:
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
           DISCORD_WEBHOOK_URL_EUROPEAN: ${{ secrets.DISCORD_WEBHOOK_URL_EUROPEAN }}
+          DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY: ${{ secrets.DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY }}
         run: |
           python analizar_opciones_experimental.py 2>&1 | tee output.log
 
@@ -125,7 +130,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests
+          pip install yfinance pandas tabulate requests yahoo_fin
 
       - name: Ejecutar script experimental
         env:
@@ -146,6 +151,7 @@ jobs:
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
           DISCORD_WEBHOOK_URL_EUROPEAN: ${{ secrets.DISCORD_WEBHOOK_URL_EUROPEAN }}
+          DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY: ${{ secrets.DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY }}
         run: |
           python analizar_opciones_experimental.py 2>&1 | tee output.log
 
@@ -176,7 +182,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests
+          pip install yfinance pandas tabulate requests yahoo_fin
 
       - name: Ejecutar script experimental
         env:
@@ -197,6 +203,7 @@ jobs:
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
           DISCORD_WEBHOOK_URL_EUROPEAN: ${{ secrets.DISCORD_WEBHOOK_URL_EUROPEAN }}
+          DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY: ${{ secrets.DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY }}
         run: |
           python analizar_opciones_experimental.py 2>&1 | tee output.log
 
@@ -227,7 +234,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests
+          pip install yfinance pandas tabulate requests yahoo_fin
 
       - name: Ejecutar script experimental
         env:
@@ -248,6 +255,7 @@ jobs:
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
           DISCORD_WEBHOOK_URL_EUROPEAN: ${{ secrets.DISCORD_WEBHOOK_URL_EUROPEAN }}
+          DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY: ${{ secrets.DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY }}
         run: |
           python analizar_opciones_experimental.py 2>&1 | tee output.log
 
@@ -278,7 +286,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests
+          pip install yfinance pandas tabulate requests yahoo_fin
 
       - name: Ejecutar script experimental
         env:
@@ -299,6 +307,7 @@ jobs:
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
           DISCORD_WEBHOOK_URL_EUROPEAN: ${{ secrets.DISCORD_WEBHOOK_URL_EUROPEAN }}
+          DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY: ${{ secrets.DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY }}
         run: |
           python analizar_opciones_experimental.py 2>&1 | tee output.log
 
@@ -306,6 +315,58 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: resultados-experimental-european-companies
+          path: |
+            resultados.txt
+            todas_las_opciones.csv
+            Mejores_Contratos.txt
+            mejores_contratos.csv
+            output.log
+
+  # Job para el grupo nasdaq_top_volatility (horarios programados)
+  analizar-opciones-nasdaq-top-volatility:
+    if: github.event_name == 'schedule' && (github.event.schedule == '0 9 * * *' || github.event.schedule == '0 15 * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas tabulate requests yahoo_fin
+
+      - name: Ejecutar script experimental
+        env:
+          GROUP_TYPE: 'nasdaq_top_volatility'
+          MIN_RENTABILIDAD_ANUAL: '45.0'
+          MAX_DIAS_VENCIMIENTO: '45'
+          MIN_DIFERENCIA_PORCENTUAL: '5.0'
+          MIN_VOLATILIDAD_IMPLICITA: '35.0'
+          MIN_VOLUMEN: '1'
+          MIN_OPEN_INTEREST: '1'
+          FILTRO_TIPO_OPCION: 'OTM'
+          TOP_CONTRATOS: '5'
+          FORCE_DISCORD_NOTIFICATION: 'false'
+          MIN_BID: '0.99'
+          ALERTA_RENTABILIDAD_ANUAL: '55.0'
+          ALERTA_VOLATILIDAD_MINIMA: '40.0'
+          DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
+          DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
+          DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
+          DISCORD_WEBHOOK_URL_EUROPEAN: ${{ secrets.DISCORD_WEBHOOK_URL_EUROPEAN }}
+          DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY: ${{ secrets.DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY }}
+        run: |
+          python analizar_opciones_experimental.py 2>&1 | tee output.log
+
+      - name: Subir resultados como artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-experimental-nasdaq-top-volatility
           path: |
             resultados.txt
             todas_las_opciones.csv
