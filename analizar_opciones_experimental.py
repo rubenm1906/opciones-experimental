@@ -127,7 +127,7 @@ GROUPS_CONFIG = {
             "prefer_iv_over_hist_vol": True,
             "min_iv": 35.0,
             "min_volume": 1000000,
-            "hist_vol_period": 30
+            "hist_vol_period": 23
         },
         "description": "NASDAQ-100 Top 15 Volatilidad Implícita",
         "webhook": os.getenv("DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY", "URL_POR_DEFECTO"),
