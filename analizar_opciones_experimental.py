@@ -125,8 +125,8 @@ GROUPS_CONFIG = {
             "top": 15,
             "metric": "implied_volatility",
             "prefer_iv_over_hist_vol": True,
-            "min_iv": 25.0, 
-            "min_volume": 1000,
+            "min_iv": 35.0,
+            "min_volume": 1000000,
             "hist_vol_period": 30
         },
         "description": "NASDAQ-100 Top 15 Volatilidad Implícita",
@@ -488,9 +488,7 @@ def main():
         return
 
     description = group_config["description"]
-    webhoo
-
-k_url = group_config["webhook"]
+    webhook_url = group_config["webhook"]
     config = group_config["config"]
     logger.info(f"Webhook URL para {description}: {webhook_url}")
     print(f"Webhook URL para {description}: {webhook_url}")
