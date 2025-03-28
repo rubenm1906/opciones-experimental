@@ -183,97 +183,6 @@ GROUPS_CONFIG = {
     }
 }
 
-
-def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30):
-    """
-    Calcula la volatilidad implícita promedio (IV) y la volatilidad histórica (Hist Vol) de un ticker.
-    Retorna un diccionario con IV, Hist Vol y el volumen del subyacente.
-    """
-    try:
-        stock = yf.Ticker(ticker)
-        # Obtener el precio actual y el volumen del subyacente
-        current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
-        volume = stock.info.get('averageVolume', 0)
-        if current_price <= 0:
-            logger.info(f"{ticker}: Precio actual no válido: ${current_price}")
-            print(f"{ticker}: Precio actual no válido: ${current_price}")
-            return None
-
-        logger.info(f"{ticker}: Precio actual: ${current_price:.2f}, Volumen promedio: {volume}")
-        print(f"{ticker}: Precio actual: ${current_price:.2f}, Volumen promedio: {volume}")
-
-        # Calcular volatilidad implícita promedio (IV) usando opciones ATM
-        expirations = stock.options
-        if not expirations:
-            logger.info(f"{ticker}: No hay fechas de vencimiento disponibles para opciones")
-            print(f"{ticker}: No hay fechas de vencimiento disponibles para opciones")
-            return None
-
-        iv_values = []
-        for expiration in expirations:
-            expiration_date = datetime.strptime(expiration, '%Y-%m-%d')
-            days_to_expiration = (expiration_date - datetime.now()).days
-            if days_to_expiration <= 0 or days_to_expiration > max_days:
-                logger.debug(f"{ticker}: Expiración {expiration} descartada: {days_to_expiration} días")
-                continue
-
-            opt = stock.option_chain(expiration)
-            # Considerar puts y calls para obtener una mejor estimación
-            for chain in [opt.puts, opt.calls]:
-                if chain.empty:
-                    logger.debug(f"{ticker}: Cadena de opciones vacía para {expiration}")
-                    continue
-                # Encontrar la opción ATM (strike más cercano al precio actual)
-                chain['strike_diff'] = abs(chain['strike'] - current_price)
-                atm_option = chain.loc[chain['strike_diff'].idxmin()]
-                iv = atm_option.get('impliedVolatility', 0) * 100
-                if iv > 0:
-                    iv_values.append(iv)
-                else:
-                    logger.debug(f"{ticker}: Volatilidad implícita no válida para {expiration}: {iv}%")
-
-        if not iv_values:
-            logger.info(f"{ticker}: No se encontraron opciones válidas para calcular IV")
-            print(f"{ticker}: No se encontraron opciones válidas para calcular IV")
-            return None
-        implied_volatility = np.mean(iv_values)
-        logger.info(f"{ticker}: Volatilidad implícita promedio: {implied_volatility:.2f}%")
-        print(f"{ticker}: Volatilidad implícita promedio: {implied_volatility:.2f}%")
-
-        # Calcular volatilidad histórica (Hist Vol)
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=hist_vol_period + 1)
-        hist_data = stock.history(start=start_date, end=end_date)
-        num_days = len(hist_data)
-        min_days_required = 10  # Requerimos al menos 10 días para un cálculo significativo
-
-        if num_days < min_days_required:
-            logger.info(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol (se encontraron {num_days} días, se requieren al menos {min_days_required})")
-            print(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol (se encontraron {num_days} días, se requieren al menos {min_days_required})")
-            return None
-
-        # Si hay menos días de los solicitados, usar los días disponibles
-        if num_days < hist_vol_period:
-            logger.info(f"{ticker}: Datos históricos insuficientes para {hist_vol_period} días, usando {num_days} días disponibles")
-            print(f"{ticker}: Datos históricos insuficientes para {hist_vol_period} días, usando {num_days} días disponibles")
-
-        # Calcular retornos diarios logarítmicos
-        hist_data['returns'] = np.log(hist_data['Close'] / hist_data['Close'].shift(1))
-        hist_vol = hist_data['returns'].std() * np.sqrt(252) * 100  # Anualizar
-        logger.info(f"{ticker}: Volatilidad histórica: {hist_vol:.2f}%")
-        print(f"{ticker}: Volatilidad histórica: {hist_vol:.2f}%")
-
-        return {
-            "ticker": ticker,
-            "implied_volatility": implied_volatility,
-            "historical_volatility": hist_vol,
-            "volume": volume
-        }
-    except Exception as e:
-        logger.info(f"Error calculando métricas de volatilidad para {ticker}: {e}")
-        print(f"Error calculando métricas de volatilidad para {ticker}: {e}")
-        return None
-
 def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30, min_days_required=5):
     """
     Calcula la volatilidad implícita promedio (IV) y la volatilidad histórica (Hist Vol) de un ticker.
@@ -466,29 +375,10 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
         print(f"Error generando tickers dinámicos: {e}")
         return []
 
-def get_stock_trend(ticker):
-    """Verifica si el precio actual está por encima de la media móvil de 50 días (tendencia alcista/neutral)."""
+def get_option_data_yahoo(ticker, group_config):
     try:
         stock = yf.Ticker(ticker)
         current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
-        hist = stock.history(period="3mo")
-        ma_50 = hist['Close'].rolling(window=50).mean().iloc[-1]
-        return current_price, ma_50, current_price > ma_50
-    except Exception as e:
-        logger.error(f"Error calculando tendencia para {ticker}: {e}")
-        print(f"Error calculando tendencia para {ticker}: {e}")
-        return None, None, False
-
-def get_option_data_yahoo(ticker, group_config):
-    try:
-        # Verificar tendencia alcista/neutral
-        current_price, ma_50, is_bullish = get_stock_trend(ticker)
-        if not is_bullish:
-            logger.info(f"{ticker}: Tendencia bajista (precio {current_price:.2f} < MA50 {ma_50:.2f}). Omitiendo.")
-            print(f"{ticker}: Tendencia bajista (precio {current_price:.2f} < MA50 {ma_50:.2f}). Omitiendo.")
-            return []
-
-        stock = yf.Ticker(ticker)
         expirations = stock.options
         options_data = []
         if current_price <= 0:
@@ -601,26 +491,21 @@ def get_option_data_yahoo(ticker, group_config):
 
 def get_option_data_finnhub(ticker, group_config):
     try:
-        # Verificar tendencia alcista/neutral
-        current_price, ma_50, is_bullish = get_stock_trend(ticker)
-        if not is_bullish:
-            logger.info(f"{ticker}: Tendencia bajista (precio {current_price:.2f} < MA50 {ma_50:.2f}). Omitiendo (Finnhub).")
-            print(f"{ticker}: Tendencia bajista (precio {current_price:.2f} < MA50 {ma_50:.2f}). Omitiendo (Finnhub).")
-            return []
-
+        stock = yf.Ticker(ticker)
+        current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
         if current_price <= 0:
             raise ValueError(f"Precio actual de {ticker} no válido: ${current_price} (Finnhub)")
 
         # Obtener fechas de vencimiento disponibles desde Finnhub
         option_chain = finnhub_client.option_chain(ticker)
-        if not option_chain or 'options' not in option_chain:
+        if not option_chain or 'data' not in option_chain:
             logger.info(f"{ticker}: No hay datos de opciones disponibles en Finnhub")
             print(f"{ticker}: No hay datos de opciones disponibles en Finnhub")
             return []
 
         options_data = []
-        for expiration in option_chain['options']:
-            expiration_date_str = expiration['expirationDate']
+        for expiration_data in option_chain['data']:
+            expiration_date_str = expiration_data['expirationDate']
             try:
                 expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
             except ValueError:
@@ -633,7 +518,7 @@ def get_option_data_finnhub(ticker, group_config):
                 continue
 
             # Obtener puts para esta fecha de vencimiento
-            puts = expiration.get('puts', [])
+            puts = expiration_data.get('options', {}).get('PUT', [])
             for option in puts:
                 strike = option.get('strike', 0)
                 bid = option.get('bid', 0)
@@ -642,7 +527,7 @@ def get_option_data_finnhub(ticker, group_config):
                     continue
 
                 # Finnhub no proporciona volatilidad implícita directamente, usamos un valor aproximado si está disponible
-                implied_volatility = option.get('impliedVolatility', 0) * 100 if option.get('impliedVolatility') else 0
+                implied_volatility = option.get('volatility', 0) * 100 if option.get('volatility') else 0
                 if implied_volatility == 0:
                     # Si no hay IV, podemos intentar estimarla, pero por ahora la omitimos
                     logger.debug(f"Opción descartada: volatilidad implícita no disponible o 0 (Finnhub)")
@@ -940,7 +825,6 @@ def main():
                 f.write(f"\nTicker: {ticker}\n{'-'*30}\n")
                 for i, row in best_contracts.iterrows():
                     f.write(f"Contrato {i+1}:\n")
-                    f.write #  "  Ticker: {ticker}\n")
                     f.write(f"  Strike: ${row['strike']:.2f}\n")
                     f.write(f"  Last Closed: ${row['last_price']:.2f}\n")
                     f.write(f"  Bid: ${row['bid']:.2f}\n")
