@@ -171,6 +171,7 @@ GROUPS_CONFIG = {
             "top": 15,
             "metric": "implied_volatility",
             "prefer_iv_over_hist_vol": True,
+            "min_iv_hist_ratio": 1.1,  # Nuevo: IV debe ser al menos 10% mayor que Hist Vol
             "min_iv": 35.0,
             "min_volume": 1000000,
             "hist_vol_period": 30
@@ -321,6 +322,7 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
         top_n = dynamic_criteria.get("top", 15)
         metric = dynamic_criteria.get("metric", "implied_volatility")
         prefer_iv_over_hist_vol = dynamic_criteria.get("prefer_iv_over_hist_vol", True)
+        min_iv_hist_ratio = dynamic_criteria.get("min_iv_hist_ratio", 1.1)  # Nuevo: Umbral para IV/Hist Vol
         min_iv = dynamic_criteria.get("min_iv", 35.0)
         min_volume = dynamic_criteria.get("min_volume", 1000000)
         hist_vol_period = dynamic_criteria.get("hist_vol_period", 30)
@@ -363,17 +365,17 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
 
         # Convertir a DataFrame para facilitar el ordenamiento
         df = pd.DataFrame(volatility_data)
-        df['iv_hist_diff'] = df['implied_volatility'] - df['historical_volatility']
-        df['iv_hist_diff_abs'] = df['iv_hist_diff'].abs()
+        df['iv_hist_ratio'] = df['implied_volatility'] / df['historical_volatility']  # Nuevo: Calcular el ratio IV/Hist Vol
+        df['iv_hist_diff_abs'] = (df['implied_volatility'] - df['historical_volatility']).abs()
 
         # Seleccionar tickers
         selected_tickers = []
-        # Primero, tickers con IV > Hist Vol, ordenados por IV (descendente)
+        # Primero, tickers con IV/Hist Vol > min_iv_hist_ratio, ordenados por IV (descendente)
         if prefer_iv_over_hist_vol:
-            iv_greater = df[df['iv_hist_diff'] > 0].sort_values(by="implied_volatility", ascending=False)
+            iv_greater = df[df['iv_hist_ratio'] > min_iv_hist_ratio].sort_values(by="implied_volatility", ascending=False)
             selected_tickers.extend(iv_greater['ticker'].head(top_n).tolist())
-            logger.info(f"Tickers con IV > Hist Vol: {len(iv_greater)}")
-            print(f"Tickers con IV > Hist Vol: {len(iv_greater)}")
+            logger.info(f"Tickers con IV/Hist Vol > {min_iv_hist_ratio}: {len(iv_greater)}")
+            print(f"Tickers con IV/Hist Vol > {min_iv_hist_ratio}: {len(iv_greater)}")
 
         # Si no se alcanzan los top_n tickers, seleccionar los restantes por diferencia absoluta (menor es mejor)
         if len(selected_tickers) < top_n:
