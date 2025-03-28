@@ -173,7 +173,7 @@ GROUPS_CONFIG = {
             "prefer_iv_over_hist_vol": True,
             "min_iv_hist_ratio": 1.2,  # Umbral para IV/Hist Vol
             "min_iv": 35.0,
-            "min_volume": 1000000,
+            "min_volume": 500000,
             "hist_vol_period": 30
         },
         "description": "NASDAQ-100 Top 15 Volatilidad Implícita",
