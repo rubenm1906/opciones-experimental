@@ -183,7 +183,7 @@ GROUPS_CONFIG = {
             "MAX_DIAS_VENCIMIENTO": 60,
             "MIN_DIAS_VENCIMIENTO": 30,
             "MIN_DIFERENCIA_PORCENTUAL": 5.0,
-            "MIN_VOLATILIDAD_IMPLICITA": 35.0,
+            "MIN_VOLATILIDAD_IMPLICITA": 30.0,
             "MIN_VOLUMEN": 1,
             "MIN_OPEN_INTEREST": 1,
             "FILTRO_TIPO_OPCION": "OTM",
