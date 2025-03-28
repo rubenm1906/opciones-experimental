@@ -6,15 +6,31 @@ from datetime import datetime, timedelta
 import requests
 from tabulate import tabulate
 import logging
-import finnhub  # Nueva dependencia para Finnhub
+import finnhub
+import pkg_resources  # Para verificar la versión de la biblioteca
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Verificar la versión de finnhub-python
+try:
+    finnhub_version = pkg_resources.get_distribution("finnhub-python").version
+    logger.info(f"Versión de finnhub-python instalada: {finnhub_version}")
+    print(f"Versión de finnhub-python instalada: {finnhub_version}")
+except pkg_resources.DistributionNotFound:
+    logger.error("La biblioteca finnhub-python no está instalada. Por favor, instálala con 'pip install finnhub-python'.")
+    print("La biblioteca finnhub-python no está instalada. Por favor, instálala con 'pip install finnhub-python'.")
+    exit(1)
+
 # Configuración de Finnhub
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "your_finnhub_api_key_here")  # Asegúrate de configurar esta variable de entorno
-finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY)
+try:
+    finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY)
+except Exception as e:
+    logger.error(f"Error al inicializar el cliente de Finnhub: {e}")
+    print(f"Error al inicializar el cliente de Finnhub: {e}")
+    finnhub_client = None
 
 # Lista estática de tickers del NASDAQ-100 (como solución temporal)
 NASDAQ_100_TICKERS = [
@@ -491,13 +507,25 @@ def get_option_data_yahoo(ticker, group_config):
 
 def get_option_data_finnhub(ticker, group_config):
     try:
+        # Verificar si el cliente de Finnhub está inicializado
+        if finnhub_client is None:
+            logger.warning(f"Cliente de Finnhub no inicializado. Omitiendo datos de Finnhub para {ticker}.")
+            print(f"Cliente de Finnhub no inicializado. Omitiendo datos de Finnhub para {ticker}.")
+            return []
+
         stock = yf.Ticker(ticker)
         current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
         if current_price <= 0:
             raise ValueError(f"Precio actual de {ticker} no válido: ${current_price} (Finnhub)")
 
         # Obtener fechas de vencimiento disponibles desde Finnhub
-        option_chain = finnhub_client.option_chain(ticker)
+        try:
+            option_chain = finnhub_client.option_chain(symbol=ticker)
+        except TypeError as e:
+            logger.error(f"Error al llamar a option_chain para {ticker}: {e}. Asegúrate de que la versión de finnhub-python sea la más reciente (pip install --upgrade finnhub-python).")
+            print(f"Error al llamar a option_chain para {ticker}: {e}. Asegúrate de que la versión de finnhub-python sea la más reciente (pip install --upgrade finnhub-python).")
+            return []
+
         if not option_chain or 'data' not in option_chain:
             logger.info(f"{ticker}: No hay datos de opciones disponibles en Finnhub")
             print(f"{ticker}: No hay datos de opciones disponibles en Finnhub")
@@ -505,7 +533,11 @@ def get_option_data_finnhub(ticker, group_config):
 
         options_data = []
         for expiration_data in option_chain['data']:
-            expiration_date_str = expiration_data['expirationDate']
+            expiration_date_str = expiration_data.get('expirationDate')
+            if not expiration_date_str:
+                logger.debug(f"No se encontró fecha de vencimiento para {ticker} en los datos de Finnhub")
+                continue
+
             try:
                 expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
             except ValueError:
@@ -529,7 +561,6 @@ def get_option_data_finnhub(ticker, group_config):
                 # Finnhub no proporciona volatilidad implícita directamente, usamos un valor aproximado si está disponible
                 implied_volatility = option.get('volatility', 0) * 100 if option.get('volatility') else 0
                 if implied_volatility == 0:
-                    # Si no hay IV, podemos intentar estimarla, pero por ahora la omitimos
                     logger.debug(f"Opción descartada: volatilidad implícita no disponible o 0 (Finnhub)")
                     continue
                 if implied_volatility < group_config["MIN_VOLATILIDAD_IMPLICITA"]:
