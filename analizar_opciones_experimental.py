@@ -183,6 +183,7 @@ GROUPS_CONFIG = {
     }
 }
 
+
 def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30):
     """
     Calcula la volatilidad implícita promedio (IV) y la volatilidad histórica (Hist Vol) de un ticker.
@@ -273,6 +274,107 @@ def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30):
         print(f"Error calculando métricas de volatilidad para {ticker}: {e}")
         return None
 
+def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30, min_days_required=5):
+    """
+    Calcula la volatilidad implícita promedio (IV) y la volatilidad histórica (Hist Vol) de un ticker.
+    Retorna un diccionario con IV, Hist Vol y el volumen del subyacente.
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        # Obtener el precio actual y el volumen del subyacente
+        current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
+        volume = stock.info.get('averageVolume', 0)
+        if current_price <= 0:
+            logger.info(f"{ticker}: Precio actual no válido: ${current_price}")
+            print(f"{ticker}: Precio actual no válido: ${current_price}")
+            return None
+
+        logger.info(f"{ticker}: Precio actual: ${current_price:.2f}, Volumen promedio: {volume}")
+        print(f"{ticker}: Precio actual: ${current_price:.2f}, Volumen promedio: {volume}")
+
+        # Calcular volatilidad implícita promedio (IV) usando opciones ATM
+        expirations = stock.options
+        if not expirations:
+            logger.info(f"{ticker}: No hay fechas de vencimiento disponibles para opciones")
+            print(f"{ticker}: No hay fechas de vencimiento disponibles para opciones")
+            return None
+
+        iv_values = []
+        for expiration in expirations:
+            expiration_date = datetime.strptime(expiration, '%Y-%m-%d')
+            days_to_expiration = (expiration_date - datetime.now()).days
+            if days_to_expiration <= 0 or days_to_expiration > max_days:
+                logger.debug(f"{ticker}: Expiración {expiration} descartada: {days_to_expiration} días")
+                continue
+
+            opt = stock.option_chain(expiration)
+            # Considerar puts y calls para obtener una mejor estimación
+            for chain in [opt.puts, opt.calls]:
+                if chain.empty:
+                    logger.debug(f"{ticker}: Cadena de opciones vacía para {expiration}")
+                    continue
+                # Encontrar la opción ATM (strike más cercano al precio actual)
+                chain['strike_diff'] = abs(chain['strike'] - current_price)
+                atm_option = chain.loc[chain['strike_diff'].idxmin()]
+                iv = atm_option.get('impliedVolatility', 0) * 100
+                if iv > 0:
+                    iv_values.append(iv)
+                else:
+                    logger.debug(f"{ticker}: Volatilidad implícita no válida para {expiration}: {iv}%")
+
+        if not iv_values:
+            logger.info(f"{ticker}: No se encontraron opciones válidas para calcular IV")
+            print(f"{ticker}: No se encontraron opciones válidas para calcular IV")
+            return None
+        implied_volatility = np.mean(iv_values)
+        logger.info(f"{ticker}: Volatilidad implícita promedio: {implied_volatility:.2f}%")
+        print(f"{ticker}: Volatilidad implícita promedio: {implied_volatility:.2f}%")
+
+        # Calcular volatilidad histórica (Hist Vol)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=hist_vol_period + 1)
+        hist_data = stock.history(start=start_date, end=end_date)
+        num_days = len(hist_data)
+
+        if num_days < min_days_required:
+            logger.info(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol (se encontraron {num_days} días, se requieren al menos {min_days_required})")
+            print(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol (se encontraron {num_days} días, se requieren al menos {min_days_required})")
+            return None
+
+        # Si hay menos días de los solicitados, usar los días disponibles
+        if num_days < hist_vol_period:
+            logger.info(f"{ticker}: Datos históricos insuficientes para {hist_vol_period} días, usando {num_days} días disponibles")
+            print(f"{ticker}: Datos históricos insuficientes para {hist_vol_period} días, usando {num_days} días disponibles")
+
+        # Calcular retornos diarios logarítmicos
+        hist_data['returns'] = np.log(hist_data['Close'] / hist_data['Close'].shift(1))
+        # Asegurarse de que haya suficientes retornos válidos (al menos 2 para calcular std)
+        valid_returns = hist_data['returns'].dropna()
+        if len(valid_returns) < 2:
+            logger.info(f"{ticker}: No hay suficientes retornos válidos para calcular Hist Vol (solo {len(valid_returns)} retornos válidos)")
+            print(f"{ticker}: No hay suficientes retornos válidos para calcular Hist Vol (solo {len(valid_returns)} retornos válidos)")
+            return None
+
+        hist_vol = valid_returns.std() * np.sqrt(252) * 100  # Anualizar
+        if np.isnan(hist_vol) or hist_vol <= 0:
+            logger.info(f"{ticker}: Volatilidad histórica no válida: {hist_vol}%")
+            print(f"{ticker}: Volatilidad histórica no válida: {hist_vol}%")
+            return None
+
+        logger.info(f"{ticker}: Volatilidad histórica: {hist_vol:.2f}%")
+        print(f"{ticker}: Volatilidad histórica: {hist_vol:.2f}%")
+
+        return {
+            "ticker": ticker,
+            "implied_volatility": implied_volatility,
+            "historical_volatility": hist_vol,
+            "volume": volume
+        }
+    except Exception as e:
+        logger.info(f"Error calculando métricas de volatilidad para {ticker}: {e}")
+        print(f"Error calculando métricas de volatilidad para {ticker}: {e}")
+        return None
+
 def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
     """
     Genera una lista de tickers dinámicamente basada en los criterios especificados.
@@ -308,6 +410,8 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
             metrics = calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=hist_vol_period)
             if metrics is None:
                 discarded_by_data += 1
+                logger.info(f"{ticker}: Descartado por falta de datos (IV, Hist Vol o volumen)")
+                print(f"{ticker}: Descartado por falta de datos (IV, Hist Vol o volumen)")
                 continue
 
             # Aplicar filtros iniciales
