@@ -6,31 +6,10 @@ from datetime import datetime, timedelta
 import requests
 from tabulate import tabulate
 import logging
-import finnhub
-import pkg_resources  # Para verificar la versión de la biblioteca
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-# Verificar la versión de finnhub-python
-try:
-    finnhub_version = pkg_resources.get_distribution("finnhub-python").version
-    logger.info(f"Versión de finnhub-python instalada: {finnhub_version}")
-    print(f"Versión de finnhub-python instalada: {finnhub_version}")
-except pkg_resources.DistributionNotFound:
-    logger.error("La biblioteca finnhub-python no está instalada. Por favor, instálala con 'pip install finnhub-python'.")
-    print("La biblioteca finnhub-python no está instalada. Por favor, instálala con 'pip install finnhub-python'.")
-    exit(1)
-
-# Configuración de Finnhub
-FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "your_finnhub_api_key_here")  # Asegúrate de configurar esta variable de entorno
-try:
-    finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY)
-except Exception as e:
-    logger.error(f"Error al inicializar el cliente de Finnhub: {e}")
-    print(f"Error al inicializar el cliente de Finnhub: {e}")
-    finnhub_client = None
 
 # Lista estática de tickers del NASDAQ-100 (como solución temporal)
 NASDAQ_100_TICKERS = [
@@ -49,10 +28,9 @@ NASDAQ_100_TICKERS = [
 # Configuración predeterminada para todos los grupos (valores por defecto)
 BASE_CONFIG = {
     "MIN_RENTABILIDAD_ANUAL": 45.0,
-    "MAX_DIAS_VENCIMIENTO": 60,
-    "MIN_DIAS_VENCIMIENTO": 30,
+    "MAX_DIAS_VENCIMIENTO": 45,
     "MIN_DIFERENCIA_PORCENTUAL": 5.0,
-    "MIN_VOLATILIDAD_IMPLICITA": 30.0,
+    "MIN_VOLATILIDAD_IMPLICITA": 35.0,
     "MIN_VOLUMEN": 1,
     "MIN_OPEN_INTEREST": 1,
     "FILTRO_TIPO_OPCION": "OTM",
@@ -61,10 +39,6 @@ BASE_CONFIG = {
     "MIN_BID": 0.99,
     "ALERTA_RENTABILIDAD_ANUAL": 50.0,
     "ALERTA_VOLATILIDAD_MINIMA": 50.0,
-    "TARGET_DELTA_MIN": -0.30,
-    "TARGET_DELTA_MAX": -0.10,
-    "CAPITAL": 50000,
-    "MAX_RISK_PER_TRADE": 0.02,
 }
 
 # Configuración de grupos (cada grupo puede tener su propia configuración)
@@ -76,7 +50,6 @@ GROUPS_CONFIG = {
         "config": {
             "MIN_RENTABILIDAD_ANUAL": float(os.getenv("MIN_RENTABILIDAD_ANUAL", BASE_CONFIG["MIN_RENTABILIDAD_ANUAL"])),
             "MAX_DIAS_VENCIMIENTO": int(os.getenv("MAX_DIAS_VENCIMIENTO", BASE_CONFIG["MAX_DIAS_VENCIMIENTO"])),
-            "MIN_DIAS_VENCIMIENTO": int(os.getenv("MIN_DIAS_VENCIMIENTO", BASE_CONFIG["MIN_DIAS_VENCIMIENTO"])),
             "MIN_DIFERENCIA_PORCENTUAL": float(os.getenv("MIN_DIFERENCIA_PORCENTUAL", BASE_CONFIG["MIN_DIFERENCIA_PORCENTUAL"])),
             "MIN_VOLATILIDAD_IMPLICITA": float(os.getenv("MIN_VOLATILIDAD_IMPLICITA", BASE_CONFIG["MIN_VOLATILIDAD_IMPLICITA"])),
             "MIN_VOLUMEN": int(os.getenv("MIN_VOLUMEN", BASE_CONFIG["MIN_VOLUMEN"])),
@@ -87,10 +60,6 @@ GROUPS_CONFIG = {
             "MIN_BID": float(os.getenv("MIN_BID", BASE_CONFIG["MIN_BID"])),
             "ALERTA_RENTABILIDAD_ANUAL": float(os.getenv("ALERTA_RENTABILIDAD_ANUAL", BASE_CONFIG["ALERTA_RENTABILIDAD_ANUAL"])),
             "ALERTA_VOLATILIDAD_MINIMA": float(os.getenv("ALERTA_VOLATILIDAD_MINIMA", BASE_CONFIG["ALERTA_VOLATILIDAD_MINIMA"])),
-            "TARGET_DELTA_MIN": float(os.getenv("TARGET_DELTA_MIN", BASE_CONFIG["TARGET_DELTA_MIN"])),
-            "TARGET_DELTA_MAX": float(os.getenv("TARGET_DELTA_MAX", BASE_CONFIG["TARGET_DELTA_MAX"])),
-            "CAPITAL": float(os.getenv("CAPITAL", BASE_CONFIG["CAPITAL"])),
-            "MAX_RISK_PER_TRADE": float(os.getenv("MAX_RISK_PER_TRADE", BASE_CONFIG["MAX_RISK_PER_TRADE"])),
         }
     },
     "indices": {
@@ -100,7 +69,6 @@ GROUPS_CONFIG = {
         "config": {
             "MIN_RENTABILIDAD_ANUAL": float(os.getenv("MIN_RENTABILIDAD_ANUAL", BASE_CONFIG["MIN_RENTABILIDAD_ANUAL"])),
             "MAX_DIAS_VENCIMIENTO": int(os.getenv("MAX_DIAS_VENCIMIENTO", BASE_CONFIG["MAX_DIAS_VENCIMIENTO"])),
-            "MIN_DIAS_VENCIMIENTO": int(os.getenv("MIN_DIAS_VENCIMIENTO", BASE_CONFIG["MIN_DIAS_VENCIMIENTO"])),
             "MIN_DIFERENCIA_PORCENTUAL": float(os.getenv("MIN_DIFERENCIA_PORCENTUAL", BASE_CONFIG["MIN_DIFERENCIA_PORCENTUAL"])),
             "MIN_VOLATILIDAD_IMPLICITA": float(os.getenv("MIN_VOLATILIDAD_IMPLICITA", BASE_CONFIG["MIN_VOLATILIDAD_IMPLICITA"])),
             "MIN_VOLUMEN": int(os.getenv("MIN_VOLUMEN", BASE_CONFIG["MIN_VOLUMEN"])),
@@ -111,10 +79,6 @@ GROUPS_CONFIG = {
             "MIN_BID": float(os.getenv("MIN_BID", BASE_CONFIG["MIN_BID"])),
             "ALERTA_RENTABILIDAD_ANUAL": float(os.getenv("ALERTA_RENTABILIDAD_ANUAL", BASE_CONFIG["ALERTA_RENTABILIDAD_ANUAL"])),
             "ALERTA_VOLATILIDAD_MINIMA": float(os.getenv("ALERTA_VOLATILIDAD_MINIMA", BASE_CONFIG["ALERTA_VOLATILIDAD_MINIMA"])),
-            "TARGET_DELTA_MIN": float(os.getenv("TARGET_DELTA_MIN", BASE_CONFIG["TARGET_DELTA_MIN"])),
-            "TARGET_DELTA_MAX": float(os.getenv("TARGET_DELTA_MAX", BASE_CONFIG["TARGET_DELTA_MAX"])),
-            "CAPITAL": float(os.getenv("CAPITAL", BASE_CONFIG["CAPITAL"])),
-            "MAX_RISK_PER_TRADE": float(os.getenv("MAX_RISK_PER_TRADE", BASE_CONFIG["MAX_RISK_PER_TRADE"])),
         }
     },
     "shortlist": {
@@ -124,7 +88,6 @@ GROUPS_CONFIG = {
         "config": {
             "MIN_RENTABILIDAD_ANUAL": float(os.getenv("MIN_RENTABILIDAD_ANUAL", BASE_CONFIG["MIN_RENTABILIDAD_ANUAL"])),
             "MAX_DIAS_VENCIMIENTO": int(os.getenv("MAX_DIAS_VENCIMIENTO", BASE_CONFIG["MAX_DIAS_VENCIMIENTO"])),
-            "MIN_DIAS_VENCIMIENTO": int(os.getenv("MIN_DIAS_VENCIMIENTO", BASE_CONFIG["MIN_DIAS_VENCIMIENTO"])),
             "MIN_DIFERENCIA_PORCENTUAL": float(os.getenv("MIN_DIFERENCIA_PORCENTUAL", BASE_CONFIG["MIN_DIFERENCIA_PORCENTUAL"])),
             "MIN_VOLATILIDAD_IMPLICITA": float(os.getenv("MIN_VOLATILIDAD_IMPLICITA", BASE_CONFIG["MIN_VOLATILIDAD_IMPLICITA"])),
             "MIN_VOLUMEN": int(os.getenv("MIN_VOLUMEN", BASE_CONFIG["MIN_VOLUMEN"])),
@@ -135,10 +98,6 @@ GROUPS_CONFIG = {
             "MIN_BID": float(os.getenv("MIN_BID", BASE_CONFIG["MIN_BID"])),
             "ALERTA_RENTABILIDAD_ANUAL": float(os.getenv("ALERTA_RENTABILIDAD_ANUAL", BASE_CONFIG["ALERTA_RENTABILIDAD_ANUAL"])),
             "ALERTA_VOLATILIDAD_MINIMA": float(os.getenv("ALERTA_VOLATILIDAD_MINIMA", BASE_CONFIG["ALERTA_VOLATILIDAD_MINIMA"])),
-            "TARGET_DELTA_MIN": float(os.getenv("TARGET_DELTA_MIN", BASE_CONFIG["TARGET_DELTA_MIN"])),
-            "TARGET_DELTA_MAX": float(os.getenv("TARGET_DELTA_MAX", BASE_CONFIG["TARGET_DELTA_MAX"])),
-            "CAPITAL": float(os.getenv("CAPITAL", BASE_CONFIG["CAPITAL"])),
-            "MAX_RISK_PER_TRADE": float(os.getenv("MAX_RISK_PER_TRADE", BASE_CONFIG["MAX_RISK_PER_TRADE"])),
         }
     },
     "european_companies": {
@@ -148,7 +107,6 @@ GROUPS_CONFIG = {
         "config": {
             "MIN_RENTABILIDAD_ANUAL": 30.0,
             "MAX_DIAS_VENCIMIENTO": 45,
-            "MIN_DIAS_VENCIMIENTO": 30,
             "MIN_DIFERENCIA_PORCENTUAL": 3.0,
             "MIN_VOLATILIDAD_IMPLICITA": 25.0,
             "MIN_VOLUMEN": 1,
@@ -158,11 +116,7 @@ GROUPS_CONFIG = {
             "FORCE_DISCORD_NOTIFICATION": False,
             "MIN_BID": 0.99,
             "ALERTA_RENTABILIDAD_ANUAL": 35.0,
-            "ALERTA_VOLATILIDAD_MINIMA": 30.0,
-            "TARGET_DELTA_MIN": -0.30,
-            "TARGET_DELTA_MAX": -0.10,
-            "CAPITAL": 50000,
-            "MAX_RISK_PER_TRADE": 0.02,
+            "ALERTA_VOLATILIDAD_MINIMA": 30.0
         }
     },
     "nasdaq_top_volatility": {
@@ -171,19 +125,17 @@ GROUPS_CONFIG = {
             "top": 15,
             "metric": "implied_volatility",
             "prefer_iv_over_hist_vol": True,
-            "min_iv_hist_ratio": 1.2,  # Umbral para IV/Hist Vol
             "min_iv": 35.0,
             "min_volume": 1000000,
-            "hist_vol_period": 30
+            "hist_vol_period": 30  # Volvemos a 30, pero ahora el script manejará dinámicamente los datos disponibles
         },
         "description": "NASDAQ-100 Top 15 Volatilidad Implícita",
         "webhook": os.getenv("DISCORD_WEBHOOK_URL_NASDAQ_TOP_VOLATILITY", "URL_POR_DEFECTO"),
         "config": {
             "MIN_RENTABILIDAD_ANUAL": 45.0,
-            "MAX_DIAS_VENCIMIENTO": 60,
-            "MIN_DIAS_VENCIMIENTO": 30,
+            "MAX_DIAS_VENCIMIENTO": 45,
             "MIN_DIFERENCIA_PORCENTUAL": 5.0,
-            "MIN_VOLATILIDAD_IMPLICITA": 30.0,
+            "MIN_VOLATILIDAD_IMPLICITA": 35.0,
             "MIN_VOLUMEN": 1,
             "MIN_OPEN_INTEREST": 1,
             "FILTRO_TIPO_OPCION": "OTM",
@@ -191,16 +143,12 @@ GROUPS_CONFIG = {
             "FORCE_DISCORD_NOTIFICATION": False,
             "MIN_BID": 0.99,
             "ALERTA_RENTABILIDAD_ANUAL": 55.0,
-            "ALERTA_VOLATILIDAD_MINIMA": 40.0,
-            "TARGET_DELTA_MIN": -0.30,
-            "TARGET_DELTA_MAX": -0.10,
-            "CAPITAL": 50000,
-            "MAX_RISK_PER_TRADE": 0.02,
+            "ALERTA_VOLATILIDAD_MINIMA": 40.0
         }
     }
 }
 
-def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30, min_days_required=5):
+def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30):
     """
     Calcula la volatilidad implícita promedio (IV) y la volatilidad histórica (Hist Vol) de un ticker.
     Retorna un diccionario con IV, Hist Vol y el volumen del subyacente.
@@ -261,6 +209,7 @@ def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30, min_da
         start_date = end_date - timedelta(days=hist_vol_period + 1)
         hist_data = stock.history(start=start_date, end=end_date)
         num_days = len(hist_data)
+        min_days_required = 10  # Requerimos al menos 10 días para un cálculo significativo
 
         if num_days < min_days_required:
             logger.info(f"{ticker}: No hay suficientes datos históricos para calcular Hist Vol (se encontraron {num_days} días, se requieren al menos {min_days_required})")
@@ -274,19 +223,7 @@ def calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=30, min_da
 
         # Calcular retornos diarios logarítmicos
         hist_data['returns'] = np.log(hist_data['Close'] / hist_data['Close'].shift(1))
-        # Asegurarse de que haya suficientes retornos válidos (al menos 2 para calcular std)
-        valid_returns = hist_data['returns'].dropna()
-        if len(valid_returns) < 2:
-            logger.info(f"{ticker}: No hay suficientes retornos válidos para calcular Hist Vol (solo {len(valid_returns)} retornos válidos)")
-            print(f"{ticker}: No hay suficientes retornos válidos para calcular Hist Vol (solo {len(valid_returns)} retornos válidos)")
-            return None
-
-        hist_vol = valid_returns.std() * np.sqrt(252) * 100  # Anualizar
-        if np.isnan(hist_vol) or hist_vol <= 0:
-            logger.info(f"{ticker}: Volatilidad histórica no válida: {hist_vol}%")
-            print(f"{ticker}: Volatilidad histórica no válida: {hist_vol}%")
-            return None
-
+        hist_vol = hist_data['returns'].std() * np.sqrt(252) * 100  # Anualizar
         logger.info(f"{ticker}: Volatilidad histórica: {hist_vol:.2f}%")
         print(f"{ticker}: Volatilidad histórica: {hist_vol:.2f}%")
 
@@ -322,7 +259,6 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
         top_n = dynamic_criteria.get("top", 15)
         metric = dynamic_criteria.get("metric", "implied_volatility")
         prefer_iv_over_hist_vol = dynamic_criteria.get("prefer_iv_over_hist_vol", True)
-        min_iv_hist_ratio = dynamic_criteria.get("min_iv_hist_ratio", 1.2)  # Umbral para IV/Hist Vol
         min_iv = dynamic_criteria.get("min_iv", 35.0)
         min_volume = dynamic_criteria.get("min_volume", 1000000)
         hist_vol_period = dynamic_criteria.get("hist_vol_period", 30)
@@ -337,8 +273,6 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
             metrics = calculate_volatility_metrics(ticker, max_days=45, hist_vol_period=hist_vol_period)
             if metrics is None:
                 discarded_by_data += 1
-                logger.info(f"{ticker}: Descartado por falta de datos (IV, Hist Vol o volumen)")
-                print(f"{ticker}: Descartado por falta de datos (IV, Hist Vol o volumen)")
                 continue
 
             # Aplicar filtros iniciales
@@ -365,27 +299,25 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
 
         # Convertir a DataFrame para facilitar el ordenamiento
         df = pd.DataFrame(volatility_data)
-        df['iv_hist_ratio'] = df['implied_volatility'] / df['historical_volatility']  # Calcular el ratio IV/Hist Vol
-        df['iv_hist_diff_abs'] = (df['implied_volatility'] - df['historical_volatility']).abs()  # Diferencia absoluta
+        df['iv_hist_diff'] = df['implied_volatility'] - df['historical_volatility']
+        df['iv_hist_diff_abs'] = df['iv_hist_diff'].abs()
 
         # Seleccionar tickers
         selected_tickers = []
-        # Primera prioridad: tickers con IV/Hist Vol > min_iv_hist_ratio, ordenados por IV (descendente)
+        # Primero, tickers con IV > Hist Vol, ordenados por IV (descendente)
         if prefer_iv_over_hist_vol:
-            iv_greater = df[df['iv_hist_ratio'] > min_iv_hist_ratio].sort_values(by="implied_volatility", ascending=False)
+            iv_greater = df[df['iv_hist_diff'] > 0].sort_values(by="implied_volatility", ascending=False)
             selected_tickers.extend(iv_greater['ticker'].head(top_n).tolist())
-            logger.info(f"Tickers con IV/Hist Vol > {min_iv_hist_ratio}: {len(iv_greater)}")
-            print(f"Tickers con IV/Hist Vol > {min_iv_hist_ratio}: {len(iv_greater)}")
+            logger.info(f"Tickers con IV > Hist Vol: {len(iv_greater)}")
+            print(f"Tickers con IV > Hist Vol: {len(iv_greater)}")
 
-        # Si no se encontraron tickers con IV/Hist Vol > min_iv_hist_ratio, usar el segundo criterio
-        if not selected_tickers:
-            logger.info("No se encontraron tickers con IV/Hist Vol > {min_iv_hist_ratio}. Usando el criterio de diferencia absoluta.")
-            print(f"No se encontraron tickers con IV/Hist Vol > {min_iv_hist_ratio}. Usando el criterio de diferencia absoluta.")
-            # Ordenar por diferencia absoluta (ascendente) y luego por IV (descendente)
-            remaining = df.sort_values(by=["iv_hist_diff_abs", "implied_volatility"], ascending=[True, False])
-            selected_tickers.extend(remaining['ticker'].head(top_n).tolist())
-            logger.info(f"Tickers seleccionados por diferencia absoluta (menor diferencia primero, luego mayor IV): {len(selected_tickers)}")
-            print(f"Tickers seleccionados por diferencia absoluta (menor diferencia primero, luego mayor IV): {len(selected_tickers)}")
+        # Si no se alcanzan los top_n tickers, seleccionar los restantes por diferencia absoluta (menor es mejor)
+        if len(selected_tickers) < top_n:
+            remaining_slots = top_n - len(selected_tickers)
+            remaining = df[~df['ticker'].isin(selected_tickers)].sort_values(by="iv_hist_diff_abs", ascending=True)
+            selected_tickers.extend(remaining['ticker'].head(remaining_slots).tolist())
+            logger.info(f"Tickers adicionales seleccionados por diferencia absoluta: {len(remaining)}")
+            print(f"Tickers adicionales seleccionados por diferencia absoluta: {len(remaining)}")
 
         logger.info(f"Tickers seleccionados para el grupo dinámico: {selected_tickers}")
         print(f"Tickers seleccionados para el grupo dinámico: {selected_tickers}")
@@ -398,9 +330,9 @@ def generate_dynamic_tickers(dynamic_source, dynamic_criteria):
 def get_option_data_yahoo(ticker, group_config):
     try:
         stock = yf.Ticker(ticker)
-        current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
         expirations = stock.options
         options_data = []
+        current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
         if current_price <= 0:
             raise ValueError(f"Precio actual de {ticker} no válido: ${current_price}")
         logger.info(f"Precio actual de {ticker}: ${current_price:.2f}")
@@ -411,9 +343,8 @@ def get_option_data_yahoo(ticker, group_config):
                 continue
             expiration_date = datetime.strptime(expiration, '%Y-%m-%d')
             days_to_expiration = (expiration_date - datetime.now()).days
-            # Filtrar por rango de días de vencimiento (30-60 días para Short Put)
-            if days_to_expiration < group_config["MIN_DIAS_VENCIMIENTO"] or days_to_expiration > group_config["MAX_DIAS_VENCIMIENTO"]:
-                logger.debug(f"Expiración {expiration} descartada: {days_to_expiration} días (fuera del rango {group_config['MIN_DIAS_VENCIMIENTO']}-{group_config['MAX_DIAS_VENCIMIENTO']})")
+            if days_to_expiration <= 0 or days_to_expiration > group_config["MAX_DIAS_VENCIMIENTO"]:
+                logger.debug(f"Expiración {expiration} descartada: {days_to_expiration} días")
                 continue
 
             opt = stock.option_chain(expiration)
@@ -445,7 +376,6 @@ def get_option_data_yahoo(ticker, group_config):
                     logger.debug(f"Opción descartada: interés abierto {open_interest} < {group_config['MIN_OPEN_INTEREST']}")
                     continue
 
-                # Filtrar por OTM
                 if group_config["FILTRO_TIPO_OPCION"] == "OTM":
                     if strike >= current_price:
                         logger.debug(f"Opción descartada: put OTM, strike ${strike:.2f} >= precio actual ${current_price:.2f}")
@@ -454,12 +384,6 @@ def get_option_data_yahoo(ticker, group_config):
                     if strike < current_price:
                         logger.debug(f"Opción descartada: put ITM, strike ${strike:.2f} < precio actual ${current_price:.2f}")
                         continue
-
-                # Filtrar por delta (probabilidad de éxito 70-90%)
-                delta = row.get('delta', 0)
-                if not (group_config["TARGET_DELTA_MIN"] <= delta <= group_config["TARGET_DELTA_MAX"]):
-                    logger.debug(f"Opción descartada: delta {delta:.2f} fuera del rango {group_config['TARGET_DELTA_MIN']} a {group_config['TARGET_DELTA_MAX']}")
-                    continue
 
                 break_even = strike - last_price
                 percent_diff = ((current_price - break_even) / current_price) * 100
@@ -471,15 +395,6 @@ def get_option_data_yahoo(ticker, group_config):
                 rentabilidad_anual = rentabilidad_diaria * (365 / days_to_expiration)
                 if rentabilidad_anual < group_config["MIN_RENTABILIDAD_ANUAL"]:
                     logger.debug(f"Opción descartada: rentabilidad anualizada {rentabilidad_anual:.2f}% < {group_config['MIN_RENTABILIDAD_ANUAL']}%")
-                    continue
-
-                # Calcular riesgo por operación (pérdida máxima si el precio cae a 0)
-                max_loss = strike * 100  # Pérdida máxima por contrato (si el precio cae a 0)
-                premium_received = last_price * 100
-                net_risk = (max_loss - premium_received)  # Riesgo neto por contrato
-                max_risk_allowed = group_config["CAPITAL"] * group_config["MAX_RISK_PER_TRADE"]
-                if net_risk > max_risk_allowed:
-                    logger.debug(f"Opción descartada: riesgo neto ${net_risk:.2f} excede el máximo permitido ${max_risk_allowed:.2f}")
                     continue
 
                 options_data.append({
@@ -497,12 +412,10 @@ def get_option_data_yahoo(ticker, group_config):
                     "rentabilidad_anual": rentabilidad_anual,
                     "break_even": break_even,
                     "percent_diff": percent_diff,
-                    "delta": delta,
-                    "net_risk": net_risk,
                     "source": "Yahoo"
                 })
-        logger.info(f"Se encontraron {len(options_data)} opciones para {ticker} después de aplicar filtros (Yahoo)")
-        print(f"Se encontraron {len(options_data)} opciones para {ticker} después de aplicar filtros (Yahoo)")
+        logger.info(f"Se encontraron {len(options_data)} opciones para {ticker} después de aplicar filtros")
+        print(f"Se encontraron {len(options_data)} opciones para {ticker} después de aplicar filtros")
         return options_data
     except Exception as e:
         logger.error(f"Error obteniendo datos de Yahoo para {ticker}: {e}")
@@ -510,155 +423,10 @@ def get_option_data_yahoo(ticker, group_config):
         return []
 
 def get_option_data_finnhub(ticker, group_config):
-    try:
-        # Verificar si el cliente de Finnhub está inicializado
-        if finnhub_client is None:
-            logger.warning(f"Cliente de Finnhub no inicializado. Omitiendo datos de Finnhub para {ticker}.")
-            print(f"Cliente de Finnhub no inicializado. Omitiendo datos de Finnhub para {ticker}.")
-            return []
-
-        stock = yf.Ticker(ticker)
-        current_price = stock.info.get('regularMarketPrice', stock.info.get('previousClose', 0))
-        if current_price <= 0:
-            raise ValueError(f"Precio actual de {ticker} no válido: ${current_price} (Finnhub)")
-
-        # Obtener fechas de vencimiento disponibles desde Finnhub
-        try:
-            option_chain = finnhub_client.option_chain(symbol=ticker)
-        except TypeError as e:
-            logger.error(f"Error al llamar a option_chain para {ticker}: {e}. Asegúrate de que la versión de finnhub-python sea la más reciente (pip install --upgrade finnhub-python).")
-            print(f"Error al llamar a option_chain para {ticker}: {e}. Asegúrate de que la versión de finnhub-python sea la más reciente (pip install --upgrade finnhub-python).")
-            return []
-
-        if not option_chain or 'data' not in option_chain:
-            logger.info(f"{ticker}: No hay datos de opciones disponibles en Finnhub")
-            print(f"{ticker}: No hay datos de opciones disponibles en Finnhub")
-            return []
-
-        options_data = []
-        for expiration_data in option_chain['data']:
-            expiration_date_str = expiration_data.get('expirationDate')
-            if not expiration_date_str:
-                logger.debug(f"No se encontró fecha de vencimiento para {ticker} en los datos de Finnhub")
-                continue
-
-            try:
-                expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
-            except ValueError:
-                logger.debug(f"Formato de fecha inválido para {ticker}: {expiration_date_str}")
-                continue
-
-            days_to_expiration = (expiration_date - datetime.now()).days
-            if days_to_expiration < group_config["MIN_DIAS_VENCIMIENTO"] or days_to_expiration > group_config["MAX_DIAS_VENCIMIENTO"]:
-                logger.debug(f"Expiración {expiration_date_str} descartada: {days_to_expiration} días (fuera del rango {group_config['MIN_DIAS_VENCIMIENTO']}-{group_config['MAX_DIAS_VENCIMIENTO']})")
-                continue
-
-            # Obtener puts para esta fecha de vencimiento
-            puts = expiration_data.get('options', {}).get('PUT', [])
-            for option in puts:
-                strike = option.get('strike', 0)
-                bid = option.get('bid', 0)
-                if bid < group_config["MIN_BID"]:
-                    logger.debug(f"Opción descartada: bid ${bid:.2f} < {group_config['MIN_BID']} (Finnhub)")
-                    continue
-
-                # Finnhub no proporciona volatilidad implícita directamente, usamos un valor aproximado si está disponible
-                implied_volatility = option.get('volatility', 0) * 100 if option.get('volatility') else 0
-                if implied_volatility == 0:
-                    logger.debug(f"Opción descartada: volatilidad implícita no disponible o 0 (Finnhub)")
-                    continue
-                if implied_volatility < group_config["MIN_VOLATILIDAD_IMPLICITA"]:
-                    logger.debug(f"Opción descartada: volatilidad implícita {implied_volatility:.2f}% < {group_config['MIN_VOLATILIDAD_IMPLICITA']}% (Finnhub)")
-                    continue
-
-                last_price = option.get('last', 0)
-                if last_price <= 0:
-                    logger.debug(f"Opción descartada: último precio ${last_price:.2f} <= 0 (Finnhub)")
-                    continue
-
-                volume = option.get('volume', 0) or 0
-                if volume < group_config["MIN_VOLUMEN"]:
-                    logger.debug(f"Opción descartada: volumen {volume} < {group_config['MIN_VOLUMEN']} (Finnhub)")
-                    continue
-
-                open_interest = option.get('openInterest', 0) or 0
-                if open_interest < group_config["MIN_OPEN_INTEREST"]:
-                    logger.debug(f"Opción descartada: interés abierto {open_interest} < {group_config['MIN_OPEN_INTEREST']} (Finnhub)")
-                    continue
-
-                # Filtrar por OTM
-                if group_config["FILTRO_TIPO_OPCION"] == "OTM":
-                    if strike >= current_price:
-                        logger.debug(f"Opción descartada: put OTM, strike ${strike:.2f} >= precio actual ${current_price:.2f} (Finnhub)")
-                        continue
-                elif group_config["FILTRO_TIPO_OPCION"] == "ITM":
-                    if strike < current_price:
-                        logger.debug(f"Opción descartada: put ITM, strike ${strike:.2f} < precio actual ${current_price:.2f} (Finnhub)")
-                        continue
-
-                # Filtrar por delta (probabilidad de éxito 70-90%)
-                delta = option.get('delta', 0)
-                if not (group_config["TARGET_DELTA_MIN"] <= delta <= group_config["TARGET_DELTA_MAX"]):
-                    logger.debug(f"Opción descartada: delta {delta:.2f} fuera del rango {group_config['TARGET_DELTA_MIN']} a {group_config['TARGET_DELTA_MAX']} (Finnhub)")
-                    continue
-
-                break_even = strike - last_price
-                percent_diff = ((current_price - break_even) / current_price) * 100
-                if percent_diff < group_config["MIN_DIFERENCIA_PORCENTUAL"]:
-                    logger.debug(f"Opción descartada: diferencia porcentual {percent_diff:.2f}% < {group_config['MIN_DIFERENCIA_PORCENTUAL']}% (Finnhub)")
-                    continue
-
-                rentabilidad_diaria = (last_price * 100) / current_price
-                rentabilidad_anual = rentabilidad_diaria * (365 / days_to_expiration)
-                if rentabilidad_anual < group_config["MIN_RENTABILIDAD_ANUAL"]:
-                    logger.debug(f"Opción descartada: rentabilidad anualizada {rentabilidad_anual:.2f}% < {group_config['MIN_RENTABILIDAD_ANUAL']}% (Finnhub)")
-                    continue
-
-                # Calcular riesgo por operación (pérdida máxima si el precio cae a 0)
-                max_loss = strike * 100  # Pérdida máxima por contrato (si el precio cae a 0)
-                premium_received = last_price * 100
-                net_risk = (max_loss - premium_received)  # Riesgo neto por contrato
-                max_risk_allowed = group_config["CAPITAL"] * group_config["MAX_RISK_PER_TRADE"]
-                if net_risk > max_risk_allowed:
-                    logger.debug(f"Opción descartada: riesgo neto ${net_risk:.2f} excede el máximo permitido ${max_risk_allowed:.2f} (Finnhub)")
-                    continue
-
-                options_data.append({
-                    "ticker": ticker,
-                    "type": "put",
-                    "strike": strike,
-                    "expiration": expiration_date_str,
-                    "days_to_expiration": days_to_expiration,
-                    "bid": bid,
-                    "last_price": last_price,
-                    "implied_volatility": implied_volatility,
-                    "volume": volume,
-                    "open_interest": open_interest,
-                    "rentabilidad_diaria": rentabilidad_diaria,
-                    "rentabilidad_anual": rentabilidad_anual,
-                    "break_even": break_even,
-                    "percent_diff": percent_diff,
-                    "delta": delta,
-                    "net_risk": net_risk,
-                    "source": "Finnhub"
-                })
-        logger.info(f"Se encontraron {len(options_data)} opciones para {ticker} después de aplicar filtros (Finnhub)")
-        print(f"Se encontraron {len(options_data)} opciones para {ticker} después de aplicar filtros (Finnhub)")
-        return options_data
-    except Exception as e:
-        logger.error(f"Error obteniendo datos de Finnhub para {ticker}: {e}")
-        print(f"Error obteniendo datos de Finnhub para {ticker}: {e}")
-        return []
+    return []
 
 def combine_options_data(yahoo_data, finnhub_data):
-    # Combinar datos de ambas fuentes
     combined = yahoo_data + finnhub_data
-    # Si hay duplicados (mismo ticker, strike, expiration), priorizar Yahoo por consistencia
-    if combined:
-        df_combined = pd.DataFrame(combined)
-        df_combined = df_combined.sort_values(by=["source"], ascending=False)  # Yahoo (source="Yahoo") tiene prioridad
-        df_combined = df_combined.drop_duplicates(subset=["ticker", "strike", "expiration"], keep="first")
-        combined = df_combined.to_dict('records')
     return combined
 
 def analyze_ticker(ticker, group_config):
@@ -668,14 +436,11 @@ def analyze_ticker(ticker, group_config):
     finnhub_data = get_option_data_finnhub(ticker, group_config)
     logger.info(f"{len(yahoo_data)} opciones de Yahoo para {ticker}")
     logger.info(f"{len(finnhub_data)} opciones de Finnhub para {ticker}")
-    logger.info(f"Combinadas {len(yahoo_data + finnhub_data)} opciones para {ticker} antes de eliminar duplicados")
+    logger.info(f"Combinadas {len(yahoo_data + finnhub_data)} opciones para {ticker}")
     print(f"{len(yahoo_data)} opciones de Yahoo para {ticker}")
     print(f"{len(finnhub_data)} opciones de Finnhub para {ticker}")
-    print(f"Combinadas {len(yahoo_data + finnhub_data)} opciones para {ticker} antes de eliminar duplicados")
-    combined_data = combine_options_data(yahoo_data, finnhub_data)
-    logger.info(f"Después de combinar y eliminar duplicados: {len(combined_data)} opciones para {ticker}")
-    print(f"Después de combinar y eliminar duplicados: {len(combined_data)} opciones para {ticker}")
-    return combined_data
+    print(f"Combinadas {len(yahoo_data + finnhub_data)} opciones para {ticker}")
+    return combine_options_data(yahoo_data, finnhub_data)
 
 def send_discord_notification(tickers_identificados, webhook_url, group_config, group_description):
     if not webhook_url or webhook_url == "URL_POR_DEFECTO":
@@ -799,7 +564,7 @@ def main():
             ticker_message += f"{len(get_option_data_yahoo(ticker, config))} opciones de Yahoo para {ticker}\n"
             ticker_message += f"{len(get_option_data_finnhub(ticker, config))} opciones de Finnhub para {ticker}\n"
             ticker_message += f"Combinadas {len(options)} opciones para {ticker}\n"
-            ticker_message += f"Fuentes: Yahoo Finance, Finnhub\n"
+            ticker_message += f"Fuentes: Yahoo Finance\n"
             ticker_message += f"Errores: Ninguno\n"
 
             print(f"Precio del subyacente ({ticker}): ${current_price:.2f}")
@@ -808,23 +573,23 @@ def main():
             print(f"{len(get_option_data_yahoo(ticker, config))} opciones de Yahoo para {ticker}")
             print(f"{len(get_option_data_finnhub(ticker, config))} opciones de Finnhub para {ticker}")
             print(f"Combinadas {len(options)} opciones para {ticker}")
-            print(f"Fuentes: Yahoo Finance, Finnhub")
+            print(f"Fuentes: Yahoo Finance")
             print(f"Errores: Ninguno")
 
             if not filtered_contracts.empty:
                 tipo_opcion_texto = "Out of the Money" if config["FILTRO_TIPO_OPCION"] == "OTM" else "In the Money"
-                ticker_message += f"\nOpciones PUT {tipo_opcion_texto} con rentabilidad anual > {config['MIN_RENTABILIDAD_ANUAL']}% y diferencia % > {config['MIN_DIFERENCIA_PORCENTUAL']}% (rango {config['MIN_DIAS_VENCIMIENTO']}-{config['MAX_DIAS_VENCIMIENTO']} días, volumen > {config['MIN_VOLUMEN']}, volatilidad >= {config['MIN_VOLATILIDAD_IMPLICITA']}%, interés abierto > {config['MIN_OPEN_INTEREST']}, bid >= ${config['MIN_BID']}, delta entre {config['TARGET_DELTA_MIN']} y {config['TARGET_DELTA_MAX']}):\n"
-                print(f"\nOpciones PUT {tipo_opcion_texto} con rentabilidad anual > {config['MIN_RENTABILIDAD_ANUAL']}% y diferencia % > {config['MIN_DIFERENCIA_PORCENTUAL']}% (rango {config['MIN_DIAS_VENCIMIENTO']}-{config['MAX_DIAS_VENCIMIENTO']} días, volumen > {config['MIN_VOLUMEN']}, volatilidad >= {config['MIN_VOLATILIDAD_IMPLICITA']}%, interés abierto > {config['MIN_OPEN_INTEREST']}, bid >= ${config['MIN_BID']}, delta entre {config['TARGET_DELTA_MIN']} y {config['TARGET_DELTA_MAX']}):")
+                ticker_message += f"\nOpciones PUT {tipo_opcion_texto} con rentabilidad anual > {config['MIN_RENTABILIDAD_ANUAL']}% y diferencia % > {config['MIN_DIFERENCIA_PORCENTUAL']}% (máximo {config['MAX_DIAS_VENCIMIENTO']} días, volumen > {config['MIN_VOLUMEN']}, volatilidad >= {config['MIN_VOLATILIDAD_IMPLICITA']}%, interés abierto > {config['MIN_OPEN_INTEREST']}, bid >= ${config['MIN_BID']}):\n"
+                print(f"\nOpciones PUT {tipo_opcion_texto} con rentabilidad anual > {config['MIN_RENTABILIDAD_ANUAL']}% y diferencia % > {config['MIN_DIFERENCIA_PORCENTUAL']}% (máximo {config['MAX_DIAS_VENCIMIENTO']} días, volumen > {config['MIN_VOLUMEN']}, volatilidad >= {config['MIN_VOLATILIDAD_IMPLICITA']}%, interés abierto > {config['MIN_OPEN_INTEREST']}, bid >= ${config['MIN_BID']}):")
 
                 table_data = filtered_contracts[[
                     "strike", "last_price", "bid", "expiration", "days_to_expiration",
                     "rentabilidad_diaria", "rentabilidad_anual", "break_even", "percent_diff",
-                    "implied_volatility", "volume", "open_interest", "delta", "net_risk", "source"
+                    "implied_volatility", "volume", "open_interest", "source"
                 ]].copy()
                 table_data.columns = [
                     "Strike", "Last Closed", "Bid", "Vencimiento", "Días Venc.",
                     "Rent. Diaria", "Rent. Anual", "Break-even", "Dif. % (Suby.-Break.)",
-                    "Volatilidad Implícita", "Volumen", "Interés Abierto", "Delta", "Riesgo Neto ($)", "Fuente"
+                    "Volatilidad Implícita", "Volumen", "Interés Abierto", "Fuente"
                 ]
                 table = tabulate(table_data, headers="keys", tablefmt="grid", showindex=False)
                 ticker_message += f"\n{table}\n"
@@ -860,6 +625,7 @@ def main():
                 f.write(f"\nTicker: {ticker}\n{'-'*30}\n")
                 for i, row in best_contracts.iterrows():
                     f.write(f"Contrato {i+1}:\n")
+                    f.write(f"  Ticker: {ticker}\n")
                     f.write(f"  Strike: ${row['strike']:.2f}\n")
                     f.write(f"  Last Closed: ${row['last_price']:.2f}\n")
                     f.write(f"  Bid: ${row['bid']:.2f}\n")
@@ -872,8 +638,6 @@ def main():
                     f.write(f"  Volatilidad Implícita: {row['implied_volatility']:.2f}%\n")
                     f.write(f"  Volumen: {row['volume']}\n")
                     f.write(f"  Interés Abierto: {row['open_interest']}\n")
-                    f.write(f"  Delta: {row['delta']:.2f}\n")
-                    f.write(f"  Riesgo Neto: ${row['net_risk']:.2f}\n")
                     f.write(f"  Fuente: {row['source']}\n")
                     f.write("\n")
 
@@ -881,7 +645,7 @@ def main():
     headers_csv = [
         "Ticker", "Strike", "Last Closed", "Bid", "Vencimiento", "Días Venc.",
         "Rent. Diaria", "Rent. Anual", "Break-even", "Dif. % (Suby.-Break.)",
-        "Volatilidad Implícita", "Volumen", "Interés Abierto", "Delta", "Riesgo Neto ($)", "Fuente"
+        "Volatilidad Implícita", "Volumen", "Interés Abierto", "Fuente"
     ]
     best_contracts_data = []
     for ticker, best_contracts in best_contracts_by_ticker.items():
@@ -901,8 +665,6 @@ def main():
                     f"{row['implied_volatility']:.2f}%",
                     row['volume'],
                     row['open_interest'],
-                    f"{row['delta']:.2f}",
-                    f"${row['net_risk']:.2f}",
                     row['source']
                 ])
     df_best = pd.DataFrame(best_contracts_data, columns=headers_csv)
