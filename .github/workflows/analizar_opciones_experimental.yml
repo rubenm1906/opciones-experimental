@@ -22,10 +22,6 @@ on:
         description: 'Máximo días al vencimiento'
         required: false
         default: '45'
-      MIN_DIAS_VENCIMIENTO:
-        description: 'Mínimo días al vencimiento'
-        required: false
-        default: '30'
       MIN_DIFERENCIA_PORCENTUAL:
         description: 'Mínima diferencia porcentual (%)'
         required: false
@@ -86,21 +82,19 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests requests_html finnhub-python
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
           GROUP_TYPE: ${{ github.event.inputs.GROUP_TYPE }}
           MIN_RENTABILIDAD_ANUAL: ${{ github.event.inputs.MIN_RENTABILIDAD_ANUAL }}
           MAX_DIAS_VENCIMIENTO: ${{ github.event.inputs.MAX_DIAS_VENCIMIENTO }}
-          MIN_DIAS_VENCIMIENTO: ${{ github.event.inputs.MIN_DIAS_VENCIMIENTO }}
           MIN_DIFERENCIA_PORCENTUAL: ${{ github.event.inputs.MIN_DIFERENCIA_PORCENTUAL }}
           MIN_VOLATILIDAD_IMPLICITA: ${{ github.event.inputs.MIN_VOLATILIDAD_IMPLICITA }}
           FILTRO_TIPO_OPCION: ${{ github.event.inputs.FILTRO_TIPO_OPCION }}
           TOP_CONTRATOS: ${{ github.event.inputs.TOP_CONTRATOS }}
           FORCE_DISCORD_NOTIFICATION: ${{ github.event.inputs.FORCE_DISCORD_NOTIFICATION }}
           MIN_BID: ${{ github.event.inputs.MIN_BID }}
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
@@ -136,14 +130,13 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests requests_html finnhub-python
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
           GROUP_TYPE: '7magnificas'
           MIN_RENTABILIDAD_ANUAL: '45.0'
           MAX_DIAS_VENCIMIENTO: '45'
-          MIN_DIAS_VENCIMIENTO: '30'
           MIN_DIFERENCIA_PORCENTUAL: '5.0'
           MIN_VOLATILIDAD_IMPLICITA: '35.0'
           MIN_VOLUMEN: '1'
@@ -154,7 +147,6 @@ jobs:
           MIN_BID: '0.99'
           ALERTA_RENTABILIDAD_ANUAL: '50.0'
           ALERTA_VOLATILIDAD_MINIMA: '50.0'
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
@@ -190,14 +182,13 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests requests_html finnhub-python
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
           GROUP_TYPE: 'indices'
           MIN_RENTABILIDAD_ANUAL: '45.0'
           MAX_DIAS_VENCIMIENTO: '45'
-          MIN_DIAS_VENCIMIENTO: '30'
           MIN_DIFERENCIA_PORCENTUAL: '5.0'
           MIN_VOLATILIDAD_IMPLICITA: '35.0'
           MIN_VOLUMEN: '1'
@@ -208,7 +199,6 @@ jobs:
           MIN_BID: '0.99'
           ALERTA_RENTABILIDAD_ANUAL: '50.0'
           ALERTA_VOLATILIDAD_MINIMA: '50.0'
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
@@ -244,14 +234,13 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests requests_html finnhub-python
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
           GROUP_TYPE: 'shortlist'
           MIN_RENTABILIDAD_ANUAL: '45.0'
           MAX_DIAS_VENCIMIENTO: '45'
-          MIN_DIAS_VENCIMIENTO: '30'
           MIN_DIFERENCIA_PORCENTUAL: '5.0'
           MIN_VOLATILIDAD_IMPLICITA: '35.0'
           MIN_VOLUMEN: '1'
@@ -262,7 +251,6 @@ jobs:
           MIN_BID: '0.99'
           ALERTA_RENTABILIDAD_ANUAL: '50.0'
           ALERTA_VOLATILIDAD_MINIMA: '50.0'
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
@@ -298,14 +286,13 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests requests_html finnhub-python
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
           GROUP_TYPE: 'european_companies'
           MIN_RENTABILIDAD_ANUAL: '30.0'
           MAX_DIAS_VENCIMIENTO: '45'
-          MIN_DIAS_VENCIMIENTO: '30'
           MIN_DIFERENCIA_PORCENTUAL: '3.0'
           MIN_VOLATILIDAD_IMPLICITA: '25.0'
           MIN_VOLUMEN: '1'
@@ -316,7 +303,6 @@ jobs:
           MIN_BID: '0.99'
           ALERTA_RENTABILIDAD_ANUAL: '35.0'
           ALERTA_VOLATILIDAD_MINIMA: '30.0'
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
@@ -352,14 +338,13 @@ jobs:
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas tabulate requests requests_html finnhub-python
+          pip install yfinance pandas tabulate requests requests_html
 
       - name: Ejecutar script experimental
         env:
           GROUP_TYPE: 'nasdaq_top_volatility'
           MIN_RENTABILIDAD_ANUAL: '45.0'
-          MAX_DIAS_VENCIMIENTO: '60'  # Ajustado para Short Put
-          MIN_DIAS_VENCIMIENTO: '30'  # Ajustado para Short Put
+          MAX_DIAS_VENCIMIENTO: '45'
           MIN_DIFERENCIA_PORCENTUAL: '5.0'
           MIN_VOLATILIDAD_IMPLICITA: '35.0'
           MIN_VOLUMEN: '1'
@@ -370,11 +355,6 @@ jobs:
           MIN_BID: '0.99'
           ALERTA_RENTABILIDAD_ANUAL: '55.0'
           ALERTA_VOLATILIDAD_MINIMA: '40.0'
-          TARGET_DELTA_MIN: '-0.30'  # Ajustado para Short Put
-          TARGET_DELTA_MAX: '-0.10'  # Ajustado para Short Put
-          CAPITAL: '50000'  # Capital para gestión de riesgo
-          MAX_RISK_PER_TRADE: '0.02'  # Máximo riesgo por operación
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           DISCORD_WEBHOOK_URL_7MAGNIFICAS: ${{ secrets.DISCORD_WEBHOOK_URL_7MAGNIFICAS }}
           DISCORD_WEBHOOK_URL_INDICES: ${{ secrets.DISCORD_WEBHOOK_URL_INDICES }}
           DISCORD_WEBHOOK_URL_SHORTLIST: ${{ secrets.DISCORD_WEBHOOK_URL_SHORTLIST }}
